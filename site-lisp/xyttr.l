@@ -11,6 +11,7 @@
 
 (in-package "xyttr")
 (export '(*xyttr-timeline-keymap*
+	  *default-user*
 	  *auto-reload*
 	  *open-url-by*
 	  *search-lang*
@@ -28,6 +29,7 @@
 (defvar *token* nil)
 (defvar *token-secret* nil)
 
+(defvar *default-user* nil)
 (defvar *auto-reload* nil
   "auto-reload interval (in seconds)")
 (defvar *open-url-by* nil)
@@ -153,7 +155,10 @@
 		*token-secret* (read-line is nil))
 	  t))))
 
-(defun get-token (&optional tokenfile)
+(defun get-access-token (&optional tokenfile)
+  (unless (eq (message-box "ブラウザ経由でOAuth認証を行います。" "xyttr"
+			   '(:ok-cancel :information)) :ok)
+    (quit))
   (multiple-value-bind (token token-secret res)
       (oauth:get-access-token
        *consumer-key* *consumer-secret*
@@ -162,20 +167,17 @@
        (concat *api-url* "/oauth/access_token"))
     (when (and token token-secret)
       (setq *token* token *token-secret* token-secret)
-      (when save
-	(let ((screen-name (and (string-match "screen_name=\\([^&]+\\)" res)
-				(match-string 1))))
-	  (unless (or tokenfile screen-name)
-	    (setq screen-name (read-string "Save Username: ")))
-	  (unless (file-directory-p "~/.xyttr")
-	    (create-directory "~/.xyttr"))
-	  (with-open-file (os (or tokenfile (concat "~/.xyttr/token_" screen-name))
-			      :direction :output
-			      :if-exists :supersede
-			      :if-does-not-exist :create)
-	    (format os "~A~%~A~%" token token-secret))
-	  (message "token saved: ~A" tokenfile)))
-      t)))
+      (whenlet screen-name (and (string-match "screen_name=\\([^&]+\\)" res)
+				(match-string 1))
+	(unless (file-directory-p "~/.xyttr")
+	  (create-directory "~/.xyttr"))
+	(with-open-file (os (or tokenfile (concat "~/.xyttr/token_" screen-name))
+			    :direction :output
+			    :if-exists :supersede
+			    :if-does-not-exist :create)
+	  (format os "~A~%~A~%" token token-secret)
+	  (message "token saved: ~A" tokenfile))
+	t))))
 
 
 
@@ -476,6 +478,21 @@
 
 
 ;;; mode
+(defun xyttr-init ()
+  (if (and *token* *token-secret*) t
+    (if *default-user*
+	(or (load-token *default-user*)
+	    #1=(get-access-token))
+      (let ((users (mapcar #'(lambda (f) (and (string-match "token_\\(.+\\)$" f)
+					      (match-string 1)))
+			   (directory "~/.xyttr/" :wild "token_*"))))
+	(if users
+	    (let ((user (ed:completing-read "username: " users)))
+	      (if (find user users :test #'string=)
+		  (load-token user)
+		#1#))
+	  #1#)))))
+
 (defun xyttr-timeline-mode ()
   (interactive)
   (kill-all-local-variables)
@@ -509,6 +526,7 @@
 (defmacro define-tl-command (name params &key interactive buffer-name api-func api-params hook auto-reload)
   `(defun ,(intern (symbol-name name) "user") ,params
      (interactive ,interactive)
+     (unless (xyttr-init) (quit))
      (let ((buf (get-buffer-create ,buffer-name)))
        (set-buffer buf)
        (unless (eq buffer-mode 'xyttr-timeline-mode)

@@ -69,3 +69,5 @@
   (define-key m '(#\c #\s) 'copy-shorten-url)
   )
 
+
+(provide "xyttr/config")
