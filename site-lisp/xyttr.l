@@ -159,14 +159,15 @@
   (unless (eq (message-box "ブラウザ経由でOAuth認証を行います。" "xyttr"
 			   '(:ok-cancel :information)) :ok)
     (quit))
-  (multiple-value-bind (token token-secret res)
+  (multiple-value-bind (tokens res)
       (oauth:get-access-token
        *consumer-key* *consumer-secret*
        (concat *api-url* "/oauth/request_token")
        (concat *api-url* "/oauth/authorize")
        (concat *api-url* "/oauth/access_token"))
-    (when (and token token-secret)
-      (setq *token* token *token-secret* token-secret)
+    (when tokens
+      (setq *token* (getf tokens :token)
+	    *token-secret* (getf tokens :token-secret))
       (whenlet screen-name (and (string-match "screen_name=\\([^&]+\\)" res)
 				(match-string 1))
 	(unless (file-directory-p "~/.xyttr")
@@ -175,10 +176,9 @@
 			    :direction :output
 			    :if-exists :supersede
 			    :if-does-not-exist :create)
-	  (format os "~A~%~A~%" token token-secret)
+	  (format os "~A~%~A~%" *token* *token-secret*)
 	  (message "token saved: ~A" tokenfile))
 	t))))
-
 
 
 ;;; api
