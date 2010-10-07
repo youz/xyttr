@@ -171,7 +171,7 @@
 	    (create-directory "~/.xyttr"))
 	  (with-open-file (os (or tokenfile (concat "~/.xyttr/token_" screen-name))
 			      :direction :output
-			      :if-exists :overwrite
+			      :if-exists :supersede
 			      :if-does-not-exist :create)
 	    (format os "~A~%~A~%" token token-secret))
 	  (message "token saved: ~A" tokenfile)))
