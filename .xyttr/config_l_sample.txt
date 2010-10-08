@@ -9,25 +9,23 @@
 (defvar *shorten-url-hosts*
   (format nil "\\(~{~A~^\\|~}\\)"
     '(bit.ly t.co j.mp htn.to amzn.to
-      ow.ly goo.gl icio.us p.tl)))
+      mcaf.ee ow.ly goo.gl icio.us p.tl)))
 
 (defun is-shorten? (url)
-  (string-match *shorten-url-hosts* url))
+;  (string-match *shorten-url-hosts* url))
+  (string-match "http://\\([^/]+\\)/\\([^/]+\\)$" url))
 
 (defun pin-focused-url ()
   (interactive)
   (whenlet url (focused-url)
-    (when (is-shorten? url)
-      (setq url (expand-short-url url)))
     (w/entry (user.screen_name text)
-      (ldrpin:ldrpin-add url (format nil "@~A: ~A" user.screen_name text)))))
+      (ldrpin:ldrpin-add (expand-short-url url)
+			 (format nil "@~A: ~A" user.screen_name text)))))
 
 (defun show-hatebu-focused-url ()
   (interactive)
   (whenlet url (focused-url)
-    (when (is-shorten? url)
-      (setq url (expand-short-url url)))
-    (hatebu:show-comments url)))
+    (hatebu:show-comments (expand-short-url url))))
 
 (defun show-hatebu-status ()
   (interactive)
@@ -45,9 +43,7 @@
 (defun copy&popup-url ()
   (interactive)
   (multiple-value-bind (url beg) (focused-url)
-    (when url
-      (when (is-shorten? url)
-	(setq url (expand-short-url url)))
+    (let ((url (expand-short-url url)))
       (copy-to-clipboard url)
       (message "Copied: ~A" url)
       (popup-string url beg))))

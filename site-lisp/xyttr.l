@@ -17,30 +17,28 @@
 	  *search-lang*
 	  *quote-format*))
 
+(defvar *default-user* nil)
+(defvar *auto-reload* nil
+  "auto-reload interval (sec)")
+(defvar *open-url-by* nil)
+(defvar *search-lang* "ja")
+(defvar *quote-format* " RT @~A: ~A")
 
-(defvar *api-url* "http://api.twitter.com")
-(defvar *search-url* "http://search.twitter.com")
-(defvar *X-Twitter-Client* "xyttr")
-(defvar *X-Twitter-Client-URL* "http://github.com/youz/xyttr")
-(defvar *X-Twitter-Client-Version* "0.1.0")
 
+;;; const
+(defconstant *api-url*    "http://api.twitter.com")
+(defconstant *search-url* "http://search.twitter.com")
+(defconstant *X-Twitter-Client* "xyttr")
+(defconstant *X-Twitter-Client-URL* "http://github.com/youz/xyttr")
+(defconstant *X-Twitter-Client-Version* "0.1.0")
+
+;;; var
 (defvar *consumer-key*    "9tO9vX1QgwWPqoPNnhcMw")
 (defvar *consumer-secret* "asn1tSaaQbs1wCm5gOVUoNdfHPGO4j3WuFKfsNKW8I")
 (defvar *token* nil)
 (defvar *token-secret* nil)
 
-(defvar *default-user* nil)
-(defvar *auto-reload* nil
-  "auto-reload interval (in seconds)")
-(defvar *open-url-by* nil)
-(defvar *search-lang* "ja")
-(defvar *quote-format* " RT @~A: ~A")
-
-;(defvar *count/page* 50)
-;(defvar *page-max* 4)
-
 (defvar *xyttr-timeline-keymap* (make-sparse-keymap))
-;(set-extended-key-translate-table exkey-S-tab #\S-F20)
 
 (let ((m *xyttr-timeline-keymap*))
   (define-key m #\C 'copy-status-url)
@@ -51,8 +49,9 @@
   (define-key m #\l 'next-link)
   (define-key m #\M-l 'recenter)
   (define-key m #\M 'user::xyttr-mentions)
-  (define-key m #\Q '(lambda () (interactive) (kill-buffer (selected-buffer))))
-  (define-key m #\R 'reload)
+  (define-key m #\Q '(lambda () (interactive)
+		      (kill-buffer (selected-buffer))))
+  (define-key m #\R 'reload-timeline)
   (define-key m #\M-r 'toggle-auto-reload)
   (define-key m '(#\r #\o) 'retweet)
   (define-key m '(#\r #\t) 'tweet-with-quote)
@@ -77,15 +76,13 @@
    `((,*hashtag-regexp* t (:keyword 1))
      (,*user-regexp* t (:keyword 0)))))
 
-(defstruct apiconf
-  apifunc auto-reload params)
 
-
+(defstruct modeconf
+  "xyttr mode config (buffer-local)"
+  mode apifunc params auto-reload (unread 0))
 
 ;;; local-variables
-(defvar-local reload-conf nil)
-(defvar-local unread-count 0)
-
+(defvar-local xyttr-mode-conf nil)
 
 
 ;;; utility
@@ -421,55 +418,54 @@
 	(tag (focused-hashtag))
 	(url (focused-url)))
     (cond (user (when (y-or-n-p "open *tw: @~A* :" user)
-		  (user::xyttr-tl-user user)))
+		  (user::xyttr-user user)))
 	  (tag (when (y-or-n-p "open *tw? #~A* :" tag)
 		 (user::xyttr-search (concat "#" tag))))
 	  (url
-	   (setq url (user::expand-short-url url))
+	   (setq url (expand-short-url url))
 	   (when (y-or-n-p "open ~A :" url)
 	     (if *open-url-by*
 		 (funcall *open-url-by* url)
 	       (shell-execute url t)))))))
 
 ;;; reload
-(defun reload ()
+(defun reload-timeline ()
   (interactive)
   (when (eq buffer-mode 'xyttr-timeline-mode)
     (let* ((buf (selected-buffer))
-	   (name  (substitute-string (buffer-name buf) " ([0-9]+)" ""))
-	   counts)
-      (whenlet statuses (apply (apiconf-apifunc reload-conf)
-			       #1=(apiconf-params reload-conf))
-	(setq counts (length statuses))
+	   (name  (substitute-string (buffer-name buf) " ([0-9]+)" "")))
+      (whenlet statuses (apply (modeconf-apifunc xyttr-mode-conf)
+			       #1=(modeconf-params xyttr-mode-conf))
+	(incf #2=(modeconf-unread xyttr-mode-conf) (length statuses))
 	(draw-statuses (selected-buffer) statuses)
 	(recenter)
-	(setf (getf (apiconf-params reload-conf) :since_id)
+	(setf (getf #1# :since_id)
 	      (json-value (car statuses) :id)))
-      (rename-buffer (format nil "~A~@[ (~D)~]" name counts) buf)
+      (rename-buffer (format nil "~A~[~:; (~D)~]" name #2# #2#) buf)
       t)))
 
 (defun set-auto-reload (buf interval)
-  (whenlet rc (buffer-local-value buf 'reload-conf)
-    (whenlet ar #1=(apiconf-auto-reload rc)
+  (whenlet rc (buffer-local-value buf 'xyttr-mode-conf)
+    (whenlet ar #1=(modeconf-auto-reload rc)
       (stop-timer ar))
     (setf #1# `(lambda ()
 		 (save-window-excursion
 		   (set-buffer ,buf)
-		   (reload))
+		   (reload-timeline))
 		 (refresh-screen)))
-    (start-timer interval #1#)
+    (start-timer (max 30 interval) #1#)
     t))
 
 (defun disable-auto-reload (buf)
-  (whenlet rc (buffer-local-value buf 'reload-conf)
-    (whenlet ar #1=(apiconf-auto-reload reload-conf)
+  (whenlet rc (buffer-local-value buf 'xyttr-mode-conf)
+    (whenlet ar #1=(modeconf-auto-reload xyttr-mode-conf)
       (stop-timer ar)
       (setf #1# nil))))
 
 (defun toggle-auto-reload ()
   (interactive)
   (message "auto reload: ~:[off~;on (~A sec)~]"
-	   (if (apiconf-auto-reload reload-conf)
+	   (if (modeconf-auto-reload xyttr-mode-conf)
 	       (disable-auto-reload (selected-buffer))
 	     (when *auto-reload*
 	       (set-auto-reload (selected-buffer) *auto-reload*)))
@@ -493,6 +489,10 @@
 		#1#))
 	  #1#)))))
 
+(defun timeline-on-activate ()
+  (when (eq buffer-mode 'xyttr-timeline-mode)
+    (setf (modeconf-unread xyttr-mode-conf) 0)))
+
 (defun xyttr-timeline-mode ()
   (interactive)
   (kill-all-local-variables)
@@ -509,6 +509,9 @@
   (set-buffer-fold-type-window)
   (use-keymap *xyttr-timeline-keymap*)
 
+  (add-hook 'ed:*post-command-hook*
+	    'timeline-on-activate)
+  
   ; delete timer
   (add-hook 'ed:*before-delete-buffer-hook*
 	    '(lambda (buf)
@@ -531,12 +534,14 @@
        (set-buffer buf)
        (unless (eq buffer-mode 'xyttr-timeline-mode)
 	 (xyttr-timeline-mode)
-	 (setq reload-conf
-	       (make-apiconf :apifunc ,api-func
-			     :params (list ,@api-params)))
+	 (setq xyttr-mode-conf
+	       (make-modeconf
+		:apifunc ,api-func
+		:params (list ,@api-params)))
 	 (whenlet interval (or ,auto-reload *auto-reload*)
 	   (set-auto-reload buf interval)))
-       (reload)
+       (reload-timeline)
+       (setf (modeconf-unread xyttr-mode-conf) 0)
        ,(when hook `(run-hooks ,hook))
        t)))
 
@@ -594,7 +599,7 @@
   (interactive "sTweet: ")
   (when (string/= status "")
     (api-update :status status)
-    (reload)))
+    (reload-timeline)))
 
 (defun mention () 
   (interactive)
@@ -603,7 +608,7 @@
 			       :default (format nil "@~A " user.screen_name))))
       (when (string/= "" status)
 	(api-update :status status)
-	(reload)))))
+	(reload-timeline)))))
 
 (defun tweet-with-quote ()
   (interactive)
@@ -612,7 +617,7 @@
 	   (status (read-string "Tweet: " :default qt)))
       (when (string/= "" status)
 	(api-update :status status)
-	(reload)))))
+	(reload-timeline)))))
 
 (defun reply-to ()
   (interactive)
@@ -622,7 +627,7 @@
       (when (string/= "" status)
 	(api-update :status status
 		    :in_reply_to_status_id id)
-	(reload)))))
+	(reload-timeline)))))
 
 (defun reply-with-quote ()
   (interactive)
@@ -632,7 +637,7 @@
       (when (string/= "" status)
 	(api-update :status status
 		    :in_reply_to_status_id id)
-	(reload)))))
+	(reload-timeline)))))
 
 (defun retweet ()
   (interactive)
@@ -659,10 +664,7 @@
 
 (defun test ()
   (interactive)
-  (msgbox "api   : ~S~%params: ~S~%reload: ~S"
-	  (apiconf-apifunc reload-conf)
-	  (apiconf-params reload-conf)
-	  (apiconf-auto-reload reload-conf)))
+  (msgbox "~S" xyttr-mode-conf))
 
 
 ;;; for edit
