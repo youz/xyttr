@@ -51,7 +51,7 @@
   (define-key m #\M 'user::xyttr-mentions)
   (define-key m #\Q '(lambda () (interactive)
 		      (kill-buffer (selected-buffer))))
-  (define-key m #\R 'reload-timeline)
+  (define-key m #\R 'timeline-reload)
   (define-key m #\M-r 'toggle-auto-reload)
   (define-key m '(#\r #\o) 'retweet)
   (define-key m '(#\r #\t) 'tweet-with-quote)
@@ -344,7 +344,7 @@
 
 
 ;;; timeline
-(defun draw-statuses (buf statuses)
+(defun timeline-draw-statuses (buf statuses)
   (setq buffer-read-only nil)
   (let ((wc (1- (window-columns))))
     (with-output-to-buffer (buf 0)
@@ -429,7 +429,7 @@
 	       (shell-execute url t)))))))
 
 ;;; reload
-(defun reload-timeline ()
+(defun timeline-reload ()
   (interactive)
   (when (eq buffer-mode 'xyttr-timeline-mode)
     (let* ((buf (selected-buffer))
@@ -437,7 +437,7 @@
       (whenlet statuses (apply (modeconf-apifunc xyttr-mode-conf)
 			       #1=(modeconf-params xyttr-mode-conf))
 	(incf #2=(modeconf-unread xyttr-mode-conf) (length statuses))
-	(draw-statuses (selected-buffer) statuses)
+	(timeline-draw-statuses (selected-buffer) statuses)
 	(recenter)
 	(setf (getf #1# :since_id)
 	      (json-value (car statuses) :id)))
@@ -451,7 +451,7 @@
     (setf #1# `(lambda ()
 		 (save-window-excursion
 		   (set-buffer ,buf)
-		   (reload-timeline))
+		   (timeline-reload))
 		 (refresh-screen)))
     (start-timer (max 30 interval) #1#)
     t))
@@ -540,7 +540,7 @@
 		:params (list ,@api-params)))
 	 (whenlet interval (or ,auto-reload *auto-reload*)
 	   (set-auto-reload buf interval)))
-       (reload-timeline)
+       (timeline-reload)
        (setf (modeconf-unread xyttr-mode-conf) 0)
        ,(when hook `(run-hooks ,hook))
        t)))
@@ -599,7 +599,7 @@
   (interactive "sTweet: ")
   (when (string/= status "")
     (api-update :status status)
-    (reload-timeline)))
+    (timeline-reload)))
 
 (defun mention () 
   (interactive)
@@ -608,7 +608,7 @@
 			       :default (format nil "@~A " user.screen_name))))
       (when (string/= "" status)
 	(api-update :status status)
-	(reload-timeline)))))
+	(timeline-reload)))))
 
 (defun tweet-with-quote ()
   (interactive)
@@ -617,7 +617,7 @@
 	   (status (read-string "Tweet: " :default qt)))
       (when (string/= "" status)
 	(api-update :status status)
-	(reload-timeline)))))
+	(timeline-reload)))))
 
 (defun reply-to ()
   (interactive)
@@ -627,7 +627,7 @@
       (when (string/= "" status)
 	(api-update :status status
 		    :in_reply_to_status_id id)
-	(reload-timeline)))))
+	(timeline-reload)))))
 
 (defun reply-with-quote ()
   (interactive)
@@ -637,7 +637,7 @@
       (when (string/= "" status)
 	(api-update :status status
 		    :in_reply_to_status_id id)
-	(reload-timeline)))))
+	(timeline-reload)))))
 
 (defun retweet ()
   (interactive)
@@ -662,9 +662,20 @@
       (message "Copied: ~A" url))))
 
 
+(defun show-parent-post ()
+  (interactive)
+  (w/entry (in_reply_to_status_id)
+    (when in_reply_to_status_id
+      (w/json (user.screen_name text)
+	  (api-show-status :id in_reply_to_status_id)
+	(popup-string (format nil "@~A: ~A" user.screen_name text)
+		      (point))))))
+
+
 (defun test ()
   (interactive)
-  (msgbox "~S" xyttr-mode-conf))
+  (multiple-value-bind (s e tag) (entry-point)
+    (msgbox "~S~%~%~S" xyttr-mode-conf tag)))
 
 
 ;;; for edit
