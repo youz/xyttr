@@ -1,44 +1,12 @@
 ;;; -*- mode:lisp; package: xyttr -*-
 
 (require 'ldrpin)
-(require 'hatebu)
 (require 'googl)
 
 (in-package "xyttr")
 
-(defvar *shorten-url-hosts*
-  (format nil "\\(~{~A~^\\|~}\\)"
-    '(bit.ly t.co j.mp htn.to amzn.to
-      mcaf.ee ow.ly goo.gl icio.us p.tl)))
-
 (defun is-shorten? (url)
-;  (string-match *shorten-url-hosts* url))
   (string-match "http://\\([^/]+\\)/\\([^/]+\\)$" url))
-
-(defun pin-focused-url ()
-  (interactive)
-  (whenlet url (focused-url)
-    (w/entry (user.screen_name text)
-      (ldrpin:ldrpin-add (expand-short-url url)
-			 (format nil "@~A: ~A" user.screen_name text)))))
-
-(defun show-hatebu-focused-url ()
-  (interactive)
-  (whenlet url (focused-url)
-    (hatebu:show-comments (expand-short-url url))))
-
-(defun show-hatebu-status ()
-  (interactive)
-  (w/entry (user.screen_name id)
-    (let ((url (format nil "http://twitter.com/~A/status/~A" user.screen_name id)))
-      (hatebu:show-comments url))))
-
-(defun copy-status-url ()
-  (interactive)
-  (w/entry (user.screen_name id)
-    (let ((url (format nil "http://twitter.com/~A/status/~A" user.screen_name id)))
-      (copy-to-clipboard url)
-      (message "Copied: ~A" url))))
 
 (defun copy&popup-url ()
   (interactive)
@@ -56,14 +24,17 @@
       (copy-to-clipboard shorten)
       (message "Copied: ~A  (~A)" shorten url))))
 
+(defun pin-focused-url ()
+  (interactive)
+  (whenlet url (focused-url)
+    (w/entry (user.screen_name text)
+      (ldrpin:ldrpin-add (expand-short-url url)
+			 (format nil "@~A: ~A" user.screen_name text)))))
+
 (let ((m *xyttr-timeline-keymap*))
-  (define-key m #\P 'pin-focused-url)
-  (define-key m '(#\H #\l) 'show-hatebu-focused-url)
-  (define-key m '(#\H #\s) 'show-hatebu-status)
-  (define-key m '(#\c #\t) 'copy-status-url)
   (define-key m '(#\c #\u) 'copy&popup-url)
   (define-key m '(#\c #\s) 'copy-shorten-url)
+  (define-key m #\P 'pin-focused-url)
   )
-
 
 (provide "xyttr/config")

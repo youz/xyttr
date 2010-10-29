@@ -15,7 +15,9 @@
 	  *auto-reload*
 	  *open-url-by*
 	  *search-lang*
-	  *quote-format*))
+	  *quote-format*
+	  *use-frame*
+	  *frame-name*))
 
 (defvar *default-user* nil)
 (defvar *auto-reload* nil
@@ -23,6 +25,8 @@
 (defvar *open-url-by* nil)
 (defvar *search-lang* "ja")
 (defvar *quote-format* " RT @~A: ~A")
+(defvar *use-frame* t)
+(defvar *frame-name* "xyttr")
 
 
 ;;; const
@@ -43,24 +47,26 @@
 (let ((m *xyttr-timeline-keymap*))
   (define-key m #\C 'copy-status-url)
   (define-key m #\D 'destroy-status)
+  (define-key m #\f 'toggle-favorite)
   (define-key m #\h 'previous-link)
+  (define-key m #\J 'timeline-append-page)
   (define-key m #\j 'forward-entry)
   (define-key m #\k 'backward-entry)
   (define-key m #\l 'next-link)
-  (define-key m #\M-l 'recenter)
   (define-key m #\M 'user::xyttr-mentions)
-  (define-key m #\Q '(lambda () (interactive)
-		      (kill-buffer (selected-buffer))))
+  (define-key m #\Q 'close-buffer)
   (define-key m #\R 'timeline-reload)
   (define-key m #\M-r 'toggle-auto-reload)
-  (define-key m '(#\r #\o) 'retweet)
-  (define-key m '(#\r #\t) 'tweet-with-quote)
+  (define-key m '(#\r #\t) 'retweet)
+  (define-key m '(#\r #\u) 'tweet-with-quote)
   (define-key m '(#\r #\r) 'reply-with-quote)
-  (define-key m #\t 'test)
+  (define-key m #\p 'show-parent-tweet)
   (define-key m #\u 'tweet)
   (define-key m #\@ 'mention)
   (define-key m #\` 'reply-to)
   (define-key m #\/ 'user::xyttr-search)
+  (define-key m #\s 'user::xyttr-search)
+  (define-key m #\S 'user::xyttr-search-global)
   (define-key m #\RET 'open-link)
   (define-key m #\TAB 'next-link)
   (define-key m #\M-Down 'next-link)
@@ -81,8 +87,12 @@
   "xyttr mode config (buffer-local)"
   mode apifunc params auto-reload (unread 0))
 
+(defstruct timeline
+  alldata last-id first-id page)
+
 ;;; local-variables
-(defvar-local xyttr-mode-conf nil)
+(defvar-local buffer-modeconf nil)
+(defvar-local buffer-timeline nil)
 
 
 ;;; utility
@@ -196,7 +206,9 @@
       (if (= status 200)
 	  (if raw res
 	    (json:json-decode res))
-	(message "xyttr::request faild: ~A" status)))))
+	(and (message-box (format nil "xyttr::request faild~%http status: ~A" status)
+			  "xyttr" '(:exclamation :ok))
+	     nil)))))
 
 #|
 (defun api-request-async (method host path params callback)
@@ -288,13 +300,15 @@
 
 (define-api favorites
   :params (id page)
-  :path   "/1/statuses/favorites.json")
+  :path   (format nil "/1/favorites~:[~;/~:*~A~].json" id))
 
 (define-api favorites-create
+  :method post
   :params (id)
   :path   (format nil "/1/favorites/create/~D.json" id))
 
 (define-api favorites-destroy
+  :method post
   :params (id)
   :path   (format nil "/1/favorites/destroy/~D.json" id))
 
@@ -327,45 +341,33 @@
     (mapcar #'convert (json-value res :results))))
 
 
-#|
-(defun get-pages (api params)
-  (let (statuses)
-    (if (getf params :since_id)
-	(do* ((page 1 (1+ page))
-	      (res #1=(apply api :page page :count *count/page* params) #1#))
-	    ((or (= page *page-max*)
-		 (= (length res) 0))
-	     #2=(setq statuses (append statuses res)))
-	  #2#)
-      (setq statuses (apply api :count *count/page* params)))
-    (message "~D tweets" (length statuses))
-    statuses))
-|#
-
-
 ;;; timeline
-(defun timeline-draw-statuses (buf statuses)
+(defun timeline-draw-statuses (buf statuses &key (point 0) (display-count t))
   (setq buffer-read-only nil)
   (let ((wc (1- (window-columns))))
-    (with-output-to-buffer (buf 0)
+    (with-output-to-buffer (buf point)
       (terpri)
       (dolist (st statuses)
-	(w/json (user.name user.screen_name created_at text source) st
-	  (let ((start (buffer-stream-point *standard-output*)))
-	    (format t "~V@{-~}~%@~A ~@[/ ~A~] [~A]~A~%~A~%" wc
-	      user.screen_name user.name
-	      (format-date-string "%y/%m/%d (%a) %H:%M:%S"
-				  (parse-date created_at))
-	      (if source
-		  (concat "  from "
-			  (if (string-match ">\\([^<]+\\)<" source)
-			      (match-string 1)
-			    source))
-		"")
-	      (entity2char text))
-	    (set-text-attribute start (+ start wc) (cons :entry st) :foreground 14)
-	    )))
-      (format t "~V@{=~}~%~D new tweets" wc (length statuses))))
+	(w/json (user.name user.screen_name created_at text source favorited) st
+	  (let ((start #1=(buffer-stream-point *standard-output*)))
+	    (format t "~V@{-~}~%@~A ~@[/ ~A~] [~A] ~:[ ~;š~]"
+		    wc user.screen_name user.name
+		    (format-date-string "%y/%m/%d (%a) %H:%M:%S"
+					(parse-date created_at))
+		    favorited)
+	    (set-text-attribute (1- #1#) #1# (cons :fav favorited) :foreground 11)
+	    (format t "~A~%~A~%"
+		    (if source
+			(concat " from "
+				(if (string-match ">\\([^<]+\\)<" source)
+				    (match-string 1)
+				  source))
+		      "")
+		    (entity2char text))
+	    (set-text-attribute start (+ start wc) (cons :entry st) :foreground 14))))
+      (when display-count
+	(format t "~V@{=~}~%~D new tweets" wc (length statuses)))
+      ))
   (setq buffer-read-only t))
 
 (defun entry-point (&optional (p (point)))
@@ -428,24 +430,29 @@
 		 (funcall *open-url-by* url)
 	       (shell-execute url t)))))))
 
+
 ;;; reload
 (defun timeline-reload ()
   (interactive)
   (when (eq buffer-mode 'xyttr-timeline-mode)
     (let* ((buf (selected-buffer))
-	   (name  (substitute-string (buffer-name buf) " ([0-9]+)" "")))
-      (whenlet statuses (apply (modeconf-apifunc xyttr-mode-conf)
-			       #1=(modeconf-params xyttr-mode-conf))
-	(incf #2=(modeconf-unread xyttr-mode-conf) (length statuses))
+	   (name  (substitute-string (buffer-name buf) " ([0-9]+)$" "")))
+      (whenlet statuses
+	  (apply (modeconf-apifunc buffer-modeconf)
+		 :since_id #1=(timeline-last-id buffer-timeline)
+		 (modeconf-params buffer-modeconf))
+	(incf #2=(modeconf-unread buffer-modeconf) (length statuses))
 	(timeline-draw-statuses (selected-buffer) statuses)
 	(recenter)
-	(setf (getf #1# :since_id)
-	      (json-value (car statuses) :id)))
+	(setf #1# (json-value (car statuses) :id)
+	      #3=(timeline-alldata buffer-timeline) (append statuses #3#))
+	(unless #4=(timeline-first-id buffer-timeline)
+	  (setf #4# (json-value (car (last statuses)) :id))))
       (rename-buffer (format nil "~A~[~:; (~D)~]" name #2# #2#) buf)
       t)))
 
 (defun set-auto-reload (buf interval)
-  (whenlet rc (buffer-local-value buf 'xyttr-mode-conf)
+  (whenlet rc (buffer-local-value buf 'buffer-modeconf)
     (whenlet ar #1=(modeconf-auto-reload rc)
       (stop-timer ar))
     (setf #1# `(lambda ()
@@ -457,15 +464,15 @@
     t))
 
 (defun disable-auto-reload (buf)
-  (whenlet rc (buffer-local-value buf 'xyttr-mode-conf)
-    (whenlet ar #1=(modeconf-auto-reload xyttr-mode-conf)
+  (whenlet rc (buffer-local-value buf 'buffer-modeconf)
+    (whenlet ar #1=(modeconf-auto-reload buffer-modeconf)
       (stop-timer ar)
       (setf #1# nil))))
 
 (defun toggle-auto-reload ()
   (interactive)
   (message "auto reload: ~:[off~;on (~A sec)~]"
-	   (if (modeconf-auto-reload xyttr-mode-conf)
+	   (if (modeconf-auto-reload buffer-modeconf)
 	       (disable-auto-reload (selected-buffer))
 	     (when *auto-reload*
 	       (set-auto-reload (selected-buffer) *auto-reload*)))
@@ -473,8 +480,27 @@
 
 
 
-;;; mode
-(defun xyttr-init ()
+(defun timeline-append-page ()
+  (interactive)
+  (whenlet id (and (eq buffer-mode 'xyttr-timeline-mode)
+		   #1=(timeline-first-id buffer-timeline))
+    (let* ((buf (selected-buffer))
+	   (name  (substitute-string (buffer-name buf) " ([0-9]+)$" "")))
+      (whenlet statuses
+	  (apply (modeconf-apifunc buffer-modeconf)
+		 :max_id (1- id) (modeconf-params buffer-modeconf))
+	(timeline-draw-statuses (selected-buffer) statuses
+				:point (point-max)
+				:display-count nil)
+	(recenter)
+	(setf #1# (json-value (car (last statuses)) :id))
+	(nconc (timeline-alldata buffer-timeline) statuses)))
+      t))
+
+
+
+;;; major mode
+(defun xyttr-init-user ()
   (if (and *token* *token-secret*) t
     (if *default-user*
 	(or (load-token *default-user*)
@@ -491,7 +517,7 @@
 
 (defun timeline-on-activate ()
   (when (eq buffer-mode 'xyttr-timeline-mode)
-    (setf (modeconf-unread xyttr-mode-conf) 0)))
+    (setf (modeconf-unread buffer-modeconf) 0)))
 
 (defun xyttr-timeline-mode ()
   (interactive)
@@ -509,6 +535,9 @@
   (set-buffer-fold-type-window)
   (use-keymap *xyttr-timeline-keymap*)
 
+  (setq buffer-modeconf (make-modeconf)
+	buffer-timeline (make-timeline))
+  
   (add-hook 'ed:*post-command-hook*
 	    'timeline-on-activate)
   
@@ -529,19 +558,21 @@
 (defmacro define-tl-command (name params &key interactive buffer-name api-func api-params hook auto-reload)
   `(defun ,(intern (symbol-name name) "user") ,params
      (interactive ,interactive)
-     (unless (xyttr-init) (quit))
+     (unless (xyttr-init-user) (quit))
      (let ((buf (get-buffer-create ,buffer-name)))
+       (when *use-frame*
+	 (select-pseudo-frame (or (find-pseudo-frame *frame-name*)
+				  (new-pseudo-frame *frame-name*))))
        (set-buffer buf)
        (unless (eq buffer-mode 'xyttr-timeline-mode)
 	 (xyttr-timeline-mode)
-	 (setq xyttr-mode-conf
-	       (make-modeconf
-		:apifunc ,api-func
-		:params (list ,@api-params)))
+	 (setf (modeconf-mode buffer-modeconf) ,(intern (symbol-name name) (find-package "keyword"))
+	       (modeconf-apifunc buffer-modeconf) ,api-func
+	       (modeconf-params buffer-modeconf) (list ,@api-params))
 	 (whenlet interval (or ,auto-reload *auto-reload*)
 	   (set-auto-reload buf interval)))
        (timeline-reload)
-       (setf (modeconf-unread xyttr-mode-conf) 0)
+       (setf (modeconf-unread buffer-modeconf) 0)
        ,(when hook `(run-hooks ,hook))
        t)))
 
@@ -576,12 +607,24 @@
   :api-func #'api-retweets-of-me
   :api-params (:count 20))
 
+(define-tl-command xyttr-favorites ()
+  :buffer-name "*tw: favs*"
+  :api-func #'api-favorites
+  :api-params (:page 1)
+  :auto-reload nil)
+
 
 (define-tl-command xyttr-search (q)
-  :interactive "sSearch Twitter:"
+  :interactive "sSearch Twitter: "
   :buffer-name (format nil "*tw? ~A*" q)
   :api-func #'api-search
   :api-params (:q q :rpp 50 :lang *search-lang*))
+
+(define-tl-command xyttr-search-global (q)
+  :interactive "sSearch Twitter (global):"
+  :buffer-name (format nil "*tw? ~A*" q)
+  :api-func #'api-search
+  :api-params (:q q :rpp 50))
 
 
 (defun user::tweet (status)
@@ -661,8 +704,29 @@
       (copy-to-clipboard url)
       (message "Copied: ~A" url))))
 
+(defun toggle-favorite ()
+  (interactive)
+  (multiple-value-bind (from to status) (entry-point)
+    (multiple-value-bind (sfrom sto stag)
+	(find-text-attribute :fav :start from :key #'safe-car)
+      (when sfrom
+	(w/json (id) status
+	  (let ((state (cdr stag)))
+	    (if state (api-favorites-destroy :id id)
+	      (api-favorites-create :id id))
+	    (setf state (not state))
+	    (save-excursion
+	      (setq buffer-read-only nil)
+	      (narrow-to-region sfrom sto)
+	      (delete-region (point-min) (point-max))
+	      (insert (if state "š" " "))
+	      (set-text-attribute (point-min) (point-max) (cons :fav state)
+				:foreground 11)
+	      (setq buffer-read-only t)
+	      (widen))))))))
 
-(defun show-parent-post ()
+
+(defun show-parent-tweet ()
   (interactive)
   (w/entry (in_reply_to_status_id)
     (when in_reply_to_status_id
@@ -672,10 +736,19 @@
 		      (point))))))
 
 
+(defun close-buffer ()
+  (interactive)
+  (kill-buffer (selected-buffer))
+  (when (and *use-frame*
+	     (notany #'(lambda (b) (eq (buffer-local-value b 'ed:buffer-mode)
+				       'xyttr-timeline-mode))
+		     (buffer-list)))
+    (delete-pseudo-frame (find-pseudo-frame *frame-name*))))
+
 (defun test ()
   (interactive)
   (multiple-value-bind (s e tag) (entry-point)
-    (msgbox "~S~%~%~S" xyttr-mode-conf tag)))
+    (msgbox "~S~%~%~S" buffer-modeconf tag)))
 
 
 ;;; for edit
