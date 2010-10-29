@@ -27,9 +27,8 @@ xyzzy上で動作するミニマムなtwitterクライアント
 
 
 ## Install
-(Netinstaller対応予定)
 NetInstallerからxml-http-requestとxl-jsonをインストールし、
-[xl-oauth](http://github.com/youz/xl-oauth)のoauth.l と xyttr.l を*load-path*に配置します。
+[xl-oauth](http://github.com/youz/xl-oauth)のoauth.l と xyttr.l を`*load-path*`に配置します。
 
 .xyzzyには
 
@@ -79,6 +78,7 @@ NetInstallerからxml-http-requestとxl-jsonをインストールし、
 
 
 ## Todo
+* Netinstaller対応
 * マルチアカウント
 * list
 * reload-async
