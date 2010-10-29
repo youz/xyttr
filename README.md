@@ -83,7 +83,7 @@ NetInstallerからxml-http-requestとxl-jsonをインストールし、
 * list
 * reload-async
 
-## Authoer
+## Author
 Yousuke Ushiki (<citrus.yubeshi@gmail.com>)
 
 ## Copyright
