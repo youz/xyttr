@@ -2,31 +2,6 @@
 
 xyzzy上で動作するミニマムなtwitterクライアント
 
-## Features
-
-### タイムライン表示
-* home timeline
-* public timeline
-* user timeline
-* mentions
-* retweeted by_me, of_me, to_me
-* search -- `xyttr:*search-lang*` に指定した言語で検索
-* search-global
-* favorites
-* list
-
-### 投稿
-* tweet 
-* mention
-* reply-to
-* retweet -- 公式RT
-* tweet-with-quote -- 非公式RT (or QT)
-* reply-with-quote -- 引用して返信
-
-### その他
-* favorites
-* destroy-status
-
 
 ## Install
 (NetInstaller対応予定)
