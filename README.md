@@ -12,6 +12,8 @@ xyzzy上で動作するミニマムなtwitterクライアント
 * retweeted by_me, of_me, to_me
 * search -- `xyttr:*search-lang*` に指定した言語で検索
 * search-global
+* favorites
+* list
 
 ### 投稿
 * tweet 
@@ -27,6 +29,8 @@ xyzzy上で動作するミニマムなtwitterクライアント
 
 
 ## Install
+(NetInstaller対応予定)
+
 NetInstallerからxml-http-requestとxl-jsonをインストールし、
 [xl-oauth](http://github.com/youz/xl-oauth)のoauth.l と xyttr.l を`*load-path*`に配置します。
 
@@ -47,44 +51,53 @@ NetInstallerからxml-http-requestとxl-jsonをインストールし、
 取得したaccess tokenは~/.xyttr フォルダ下に"token_<ユーザー名>"というファイル名で保存されます。
 
 
-## Key Bindgings
+## Keymap
 
-* C -- copy-status-url
-* D -- destroy-status
-* f -- toggle-favorite
-* h -- previous-link
-* J -- timeline-append-page
-* j -- forward-entry
-* k -- backward-entry
-* l -- next-link
-* M -- xyttr-mentions
-* p -- show-parent-tweet
-* Q -- close-buffer
-* R -- timeline-reload
-* M-r -- toggle-auto-reload
-* rt -- retweet
-* ru -- tweet-with-quote
-* rr -- reply-with-quote
-* u -- tweet
-* @ -- mention
-* ` -- reply-to
-* / -- xyttr-search
-* s -- xyttr-search
-* S -- xyttr-search-global
-* RET -- open-link
-* TAB -- next-link
-* M-Down -- next-link
-* M-Up -- previous-link
++ タイムライン表示
+    - M -- @関連
+    - U -- ユーザータイムライン
+    - L -- リスト
+    - F -- お気に入り
+    - / -- twitter検索 (`xyttr:*default-lang*` に指定した言語で検索)
+    - s -- 同上
+    - S -- twitter検索 (言語指定なしで検索)
+    - R -- リロード (新着取得)
+    - M-r -- オートリロード on / off
+    - J -- ページ追加 (過去分取得)
+    - Q -- 閉じる
+
++ ポスト
+    - u -- tweet
+    - @ -- 言及
+    - ` -- 返信
+    - rt -- 公式RT
+    - rr -- 引用して返信
+    - ru -- 引用してツイート (非公式RT)
+    - f -- ☆ on / off
+    - D -- 削除
+
++ カーソル
+    - j -- 次
+    - k -- 前
+    - TAB -- 次のリンク
+    - l -- 同上
+    - h -- 前のリンク
+
++ その他
+    - RET -- リンク(url, ユーザーTL, ハッシュタグ)を開く
+    - C -- ステータスのURLをクリップボードにコピー
+    - p -- 言及先のステータスをポップアップ表示
 
 
 ## Todo
 * Netinstaller対応
 * マルチアカウント
-* list
-* reload-async
+* list購読
+* 非同期リクエスト
 
 ## Author
 Yousuke Ushiki (<citrus.yubeshi@gmail.com>)
+@Yubeshi / @xyttr
 
 ## Copyright
 MIT License を適用しています。
