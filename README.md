@@ -15,7 +15,7 @@ NetInstallerからxml-http-requestとxl-jsonをインストールし、
     (setq xyttr:*default-user* "your-name"
           xyttr:*auto-reload* 600)
 
-と追記しておきます。
+の様に追記しておきます。
 
 
 ## Usage

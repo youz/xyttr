@@ -1,25 +1,11 @@
 ;;; -*- mode:lisp; package: xyttr -*-
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
-  (require 'ldrpin)
-  (require 'googl)
-  (require 'growl))
-
+  (require 'googl) ; https://github.com/youz/xyzzy-lisp/blob/master/googl.l
+  (require 'growl) ; https://github.com/youz/xyzzy-lisp/blob/master/growl.l
+  )
 
 (in-package "xyttr")
-
-(defun pin-focused-url ()
-  (interactive)
-  (whenlet url (focused-url)
-    (w/entry (user.screen_name text)
-      (ldrpin:ldrpin-add (expand-short-url url)
-			 (format nil "@~A: ~A" user.screen_name text)))))
-
-(defun pin-status-url ()
-  (interactive)
-  (w/entry (user.screen_name text)
-    (ldrpin:ldrpin-add (status-url)
-		       (format nil "@~A: ~A" user.screen_name text))))
 
 (defun copy&popup-url ()
   (interactive)
