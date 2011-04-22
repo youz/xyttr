@@ -45,37 +45,52 @@
 (defvar *xyttr-timeline-keymap* (make-sparse-keymap))
 
 (let ((m *xyttr-timeline-keymap*))
-  (define-key m #\C 'copy-status-url)
-  (define-key m #\D 'destroy-status)
-  (define-key m #\f 'toggle-favorite)
-  (define-key m #\h 'previous-link)
-  (define-key m #\J 'timeline-append-page)
+  ;; open timeline
+  (define-key m #\U 'user::xyttr-user)
+  (define-key m #\M 'user::xyttr-mentions)
+  (define-key m #\F 'user::xyttr-favorites)
+  (define-key m #\s 'user::xyttr-search)
+  (define-key m #\S 'user::xyttr-search-global)
+  (define-key m #\/ 'user::xyttr-search-global)
+  (define-key m #\L 'user::xyttr-list)
+
+  ;; cursor
   (define-key m #\j 'forward-entry)
   (define-key m #\k 'backward-entry)
   (define-key m #\l 'next-link)
-  (define-key m #\M 'user::xyttr-mentions)
-  (define-key m #\Q 'close-buffer)
-  (define-key m #\R 'timeline-reload)
-  (define-key m #\M-r 'toggle-auto-reload)
-  (define-key m '(#\r #\t) 'retweet)
-  (define-key m '(#\r #\u) 'tweet-with-quote)
-  (define-key m '(#\r #\r) 'reply-with-quote)
-  (define-key m #\p 'show-parent-tweet)
-  (define-key m #\u 'tweet)
-  (define-key m #\@ 'mention)
-  (define-key m #\` 'reply-to)
-  (define-key m #\/ 'user::xyttr-search)
-  (define-key m #\s 'user::xyttr-search)
-  (define-key m #\S 'user::xyttr-search-global)
+  (define-key m #\h 'previous-link)
   (define-key m #\RET 'open-link)
   (define-key m #\TAB 'next-link)
   (define-key m #\M-Down 'next-link)
   (define-key m #\M-Up 'previous-link)
-)
 
-(defvar *url-regexp* "http://[-0-9A-Za-z_.!~*'();/?:@&=+$,%#|]+")
+  ;; post
+  (define-key m #\u 'tweet)
+  (define-key m #\@ 'mention)
+  (define-key m #\` 'reply-to)
+  (define-key m #\f 'toggle-favorite)
+  (define-key m '(#\r #\t) 'retweet)
+  (define-key m '(#\r #\u) 'tweet-with-quote)
+  (define-key m '(#\r #\r) 'reply-with-quote)
+  (define-key m #\D 'destroy-status)
+
+  ;; etc
+  (define-key m #\R 'timeline-reload)
+  (define-key m #\M-r 'toggle-auto-reload)
+  (define-key m #\J 'timeline-append-page)
+  (define-key m #\Q 'close-timeline-buffer)
+  (define-key m #\C 'copy-status-url)
+  (define-key m #\p 'show-irt-status)
+  )
+
+(defvar *url-regexp* "https?://[-0-9A-Za-z_.!~*'();/?:@&=+$,%#|]+")
 (defvar *hashtag-regexp* "#\\([_a-zA-Z0-9]+\\)")
 (defvar *user-regexp* "@\\([_a-zA-Z0-9]+\\)")
+
+(defvar *link-regexps*
+  (list *url-regexp*
+	*hashtag-regexp*
+	*user-regexp*))
 
 (defvar *regexp-keyword-list*
   (compile-regexp-keyword-list
@@ -85,9 +100,16 @@
 
 (defstruct modeconf
   "xyttr mode config (buffer-local)"
-  mode apifunc params auto-reload (unread 0))
+  user        ; username (= screen name)
+  mode        ; timeline mode name (:home-timeline, :user-timeline, etc)
+  apifunc     ; #'api-home-timeline, #'api-user-timeline, etc
+  params      ; parameters passed to apifunc
+  auto-reload ; auto-reload interval (number of seconds, or nil)
+  (unread 0)  ; unread counter
+  )
 
 (defstruct timeline
+  "timeline data (buffer-local)"
   alldata last-id first-id page)
 
 ;;; local-variables
@@ -120,7 +142,7 @@
 
 (defun entity2char (str)
   (reduce #'(lambda (s pair) (apply #'substitute-string s pair))
-	  '(("&amp;" "&") ("&gt;" ">") ("&lt;" "<") ("&quot;" "\""))
+	  '(("&gt;" ">") ("&lt;" "<") ("&quot;" "\"") ("&amp;" "&"))
 	  :initial-value str))
 
 (defun parse-date (str)
@@ -151,6 +173,15 @@
 	      when (string-match "^Location: \\(.+\\)$" buf)
 	      do (return (match-string 1))
 	      while buf)))))))
+
+
+(defmacro w/buffer-modifying ((&optional buf) &body body)
+  `(save-excursion
+     (set-buffer ,(or buf '(selected-buffer)))
+     (setq ed:buffer-read-only nil)
+     ,@body
+     (set-buffer-modified-p nil)
+     (setq ed:buffer-read-only t)))
 
 
 ;;; auth
@@ -189,7 +220,7 @@
 
 
 ;;; api
-(defun api-request (method host path params &key raw)
+(defun api-request-sync (method host path params &key raw)
   (let* ((url (concat host path))
 	 (cred (list :consumer-key *consumer-key*
 		     :consumer-secret *consumer-secret*
@@ -206,14 +237,10 @@
       (if (= status 200)
 	  (if raw res
 	    (json:json-decode res))
-	(and (message-box (format nil "xyttr::request faild~%http status: ~A" status)
-			  "xyttr" '(:exclamation :ok))
-	     nil)))))
+	(let ((msg (format nil "http status: ~A~%~A" status res)))
+	  (message-box msg "request failed" '(:exclamation :ok))
+	  nil)))))
 
-#|
-(defun api-request-async (method host path params callback)
-  )
-|#
 
 (defmacro define-api (name &key (auth t) (method 'get) (apiurl '*api-url*)
 			   path params key raw)
@@ -222,7 +249,7 @@
      (defun ,(symb "api-" name) (&key ,@params)
        (funcall
 	,(or key '#'identity)
-	(funcall #'api-request ',method ,apiurl ,path
+	(funcall #'api-request-sync ',method ,apiurl ,path
 		 (append
 		  ,@(loop for p in params
 		      for n = (symbol-name p)
@@ -234,6 +261,7 @@
      ))
 
 
+;;; timeline api
 (define-api public-timeline
   :auth nil
   :path   "/1/statuses/public_timeline.json"
@@ -246,7 +274,7 @@
 (define-api user-timeline
   :path   "/1/statuses/user_timeline.json"
   :params (user_id screen_name
-	   since_id max_id count page trim_user include_entities))
+	   since_id max_id count page trim_user include_rts include_entities))
 
 (define-api mentions
   :path "/1/statuses/mentions.json"
@@ -268,6 +296,8 @@
   :params (id)
   :path   (format nil "/1/statuses/show/~D.json" id))
 
+
+;;; post api
 (define-api update
   :method post
   :path   "/1/statuses/update.json"
@@ -279,6 +309,8 @@
   :params (id)
   :path   (format nil "/1/statuses/destroy/~D.json" id))
 
+
+;;; retweet api
 (define-api retweet
   :method post
   :params (id)
@@ -297,7 +329,7 @@
   :params (id count page)
   :path   (format nil "/1/statuses/~D/retweeted_by/ids.json" id))
 
-
+;;; favorites api
 (define-api favorites
   :params (id page)
   :path   (format nil "/1/favorites~:[~;/~:*~A~].json" id))
@@ -316,6 +348,43 @@
   :params ()
   :path   "/1/help/test.json"
   :raw t)
+
+
+;;; list api
+(define-api list-create
+  :method post
+  :params (user name mode description)
+  :path (format nil "/1/~A/lists.json" user))
+
+(define-api list-update
+  :method post
+  :params (user list_id name mode description)
+  :path (format nil "/1/~A/lists/~A.json" user list_id))
+
+(define-api list-index
+  :params (user cursor)
+  :path (format nil "/1/~A/lists.json" user))
+
+(define-api list-info
+  :params (user list_id)
+  :path (format nil "/1/~A/lists/~A.json" user list_id))
+
+(define-api list-delete
+  :method post
+  :marams (user list_id (_method DELETE))
+  :path (format nil "/1/~A/lists/~A.json" user list_id))
+
+(define-api list-statuses
+  :params (user list_id since_id max_id per_page page)
+  :path (format nil "/1/~A/lists/~A/statuses.json" user list_id))
+
+(define-api list-memberships
+  :params (user list_id)
+  :path (format nil "/1/~A/lists/memberships.json" user list_id))
+
+(define-api list-subscriptions
+  :params (user cursor)
+  :path (format nil "/1/~A/lists/subscriptions.json" user))
 
 
 ;;; search api
@@ -338,37 +407,45 @@
 	     ("user" ("screen_name" . ,from_user))
 	     ("created_at" . ,(fixdate created_at))
 	     ("text" . ,text)))))
-    (mapcar #'convert (json-value res :results))))
+    (mapcar #'convert (json-value res results))))
 
 
 ;;; timeline
-(defun timeline-draw-statuses (buf statuses &key (point 0) (display-count t))
-  (setq buffer-read-only nil)
-  (let ((wc (1- (window-columns))))
-    (with-output-to-buffer (buf point)
-      (terpri)
-      (dolist (st statuses)
-	(w/json (user.name user.screen_name created_at text source favorited) st
-	  (let ((start #1=(buffer-stream-point *standard-output*)))
-	    (format t "~V@{-~}~%@~A ~@[/ ~A~] [~A] ~:[ ~;š~]"
-		    wc user.screen_name user.name
-		    (format-date-string "%y/%m/%d (%a) %H:%M:%S"
-					(parse-date created_at))
-		    favorited)
-	    (set-text-attribute (1- #1#) #1# (cons :fav favorited) :foreground 11)
-	    (format t "~A~%~A~%"
-		    (if source
-			(concat " from "
-				(if (string-match ">\\([^<]+\\)<" source)
-				    (match-string 1)
-				  source))
-		      "")
-		    (entity2char text))
-	    (set-text-attribute start (+ start wc) (cons :entry st) :foreground 14))))
-      (when display-count
-	(format t "~V@{=~}~%~D new tweets" wc (length statuses)))
-      ))
-  (setq buffer-read-only t))
+(defun timeline-draw-statuses (buf statuses &key (point 0) (display-count nil))
+  (save-excursion
+    (set-buffer buf)
+    (w/buffer-modifying (buf)
+      (let ((wc (max 20 (1- (window-columns)))))
+	(with-output-to-buffer (buf point)
+	  (terpri)
+	  (dolist (st statuses)
+	    (w/json (user.name user.screen_name created_at text source favorited
+			       retweeted_status retweet_count) st
+	      (let ((start #1=(buffer-stream-point *standard-output*)))
+		(format t "~V@{-~}~%@~A ~@[/ ~A~] [~A] ~:[ ~;š~]"
+			wc user.screen_name user.name
+			(format-date-string "%y/%m/%d (%a) %H:%M:%S"
+					    (parse-date created_at))
+			favorited)
+		(set-text-attribute (1- #1#) #1# (cons :fav favorited) :foreground 11)
+		(format t "~A~%~A~%"
+			(if source
+			    (concat " from "
+				    (if (string-match ">\\([^<]+\\)<" source)
+					(match-string 1)
+				      source))
+			  "")
+			(if retweeted_status
+			    (w/json (user.screen_name text) retweeted_status
+			      (format nil "RT~@[(~A)~] @~A: ~A"
+				      retweet_count user.screen_name (entity2char text)))
+			  (entity2char text)))
+		(set-text-attribute start (+ start wc) (cons :entry st) :foreground 14))))
+	  (when display-count
+	    (format t "~V@{=~}~%~D new tweets" wc (length statuses)))
+	  )))
+    (recenter)))
+
 
 (defun entry-point (&optional (p (point)))
   (multiple-value-bind (start end tag)
@@ -391,28 +468,31 @@
       (forward-line 2)
       (recenter))))
 
-(eval-when (:load-toplevel)
-  (macrolet
-      ((define-link (item re &optional (match-index 0))
-	 `(defun ,(symb 'focused- item) (&optional (p (point)))
-	    (save-excursion
-	      (goto-char p)
-	      (when (scan-buffer ,re :reverse t :regexp t)
-		(let ((beg (match-beginning 0))
-		      (end (match-end 0)))
-		  (when (<= beg p end)
-		    (values (match-string ,match-index) beg end))))))))
-    (define-link url *url-regexp*)
-    (define-link hashtag *hashtag-regexp* 1)
-    (define-link user *user-regexp* 1)))
+(defun get-link (point pattern &optional (match-index 0))
+  (save-excursion
+    (goto-char point)
+    (when (scan-buffer pattern :reverse t :regexp t)
+      (let ((beg (match-beginning 0))
+	    (end (match-end 0)))
+	(when (<= beg point end)
+	  (values (match-string match-index) beg end))))))
+  
+(defun focused-url ()
+  (get-link (point) *url-regexp*))
+
+(defun focused-hashtag ()
+  (get-link (point) *hashtag-regexp* 1))
+
+(defun focused-user ()
+  (get-link (point) *user-regexp* 1))
 
 (defun next-link ()
   (interactive)
-  (scan-buffer "\\(http://\\)\\|\\([@#][_a-zA-Z0-9]\\)" :regexp t :no-dup t))
+  (scan-buffer (format nil "~{~A~^\\|~}" *link-regexps*) :regexp t :no-dup t))
 
 (defun previous-link ()
   (interactive)
-  (scan-buffer "\\(http://\\)\\|\\([@#][_a-zA-Z0-9]\\)" :regexp t :no-dup t :reverse t))
+  (scan-buffer (format nil "~{~A~^\\|~}" *link-regexps*) :regexp t :no-dup t :reverse t))
 
 (defun open-link ()
   (interactive)
@@ -422,7 +502,7 @@
     (cond (user (when (y-or-n-p "open *tw: @~A* :" user)
 		  (user::xyttr-user user)))
 	  (tag (when (y-or-n-p "open *tw? #~A* :" tag)
-		 (user::xyttr-search (concat "#" tag))))
+		 (user::xyttr-search-global (concat "#" tag))))
 	  (url
 	   (setq url (expand-short-url url))
 	   (when (y-or-n-p "open ~A :" url)
@@ -432,23 +512,24 @@
 
 
 ;;; reload
-(defun timeline-reload ()
+(defun timeline-reload (&optional (buf (selected-buffer)))
   (interactive)
-  (when (eq buffer-mode 'xyttr-timeline-mode)
-    (let* ((buf (selected-buffer))
-	   (name  (substitute-string (buffer-name buf) " ([0-9]+)$" "")))
+  (when (eq (buffer-local-value buf 'ed:buffer-mode) 'xyttr-timeline-mode)
+    (let ((name  (substitute-string (buffer-name buf) " ([0-9]+)$" ""))
+	  (conf (buffer-local-value buf 'buffer-modeconf))
+	  (tl (buffer-local-value buf 'buffer-timeline)))
       (whenlet statuses
-	  (apply (modeconf-apifunc buffer-modeconf)
-		 :since_id #1=(timeline-last-id buffer-timeline)
-		 (modeconf-params buffer-modeconf))
-	(incf #2=(modeconf-unread buffer-modeconf) (length statuses))
-	(timeline-draw-statuses (selected-buffer) statuses)
-	(recenter)
-	(setf #1# (json-value (car statuses) :id)
-	      #3=(timeline-alldata buffer-timeline) (append statuses #3#))
-	(unless #4=(timeline-first-id buffer-timeline)
-	  (setf #4# (json-value (car (last statuses)) :id))))
+	  (apply (modeconf-apifunc conf)
+		 :since_id #1=(timeline-last-id tl)
+		 (modeconf-params conf))
+	(incf #2=(modeconf-unread conf) (length statuses))
+	(timeline-draw-statuses buf statuses)
+	(setf #1# (json-value (car statuses) id)
+	      #3=(timeline-alldata tl) (append statuses #3#))
+	(unless #4=(timeline-first-id tl)
+	  (setf #4# (json-value (car (last statuses)) id))))
       (rename-buffer (format nil "~A~[~:; (~D)~]" name #2# #2#) buf)
+      (refresh-screen)
       t)))
 
 (defun set-auto-reload (buf interval)
@@ -456,10 +537,7 @@
     (whenlet ar #1=(modeconf-auto-reload rc)
       (stop-timer ar))
     (setf #1# `(lambda ()
-		 (save-window-excursion
-		   (set-buffer ,buf)
-		   (timeline-reload))
-		 (refresh-screen)))
+		 (timeline-reload ,buf)))
     (start-timer (max 30 interval) #1#)
     t))
 
@@ -493,7 +571,7 @@
 				:point (point-max)
 				:display-count nil)
 	(recenter)
-	(setf #1# (json-value (car (last statuses)) :id))
+	(setf #1# (json-value (car (last statuses)) id))
 	(nconc (timeline-alldata buffer-timeline) statuses)))
       t))
 
@@ -549,9 +627,14 @@
 	      t))
 
   (unless (find "xyttr/config" *modules* :test #'string=)
-    (let ((config (merge-pathnames ".xyttr/config.l" (si:system-root))))
+    (let* ((config (merge-pathnames ".xyttr/config.l" (si:system-root)))
+	   (lc (compile-file-pathname config)))
       (when (file-exist-p config)
-	(load-file config)))))
+	(if (file-exist-p lc)
+	    (if (file-newer-than-file-p config lc)
+		(load-file config)
+	      (load-file lc))
+	  (load-file config))))))
 
 
 ;;; user command
@@ -585,25 +668,25 @@
   :interactive "sUser: @"
   :buffer-name (format nil "*tw: ~:[@~A~;mine~]*" (string= "" user) user)
   :api-func #'api-user-timeline
-  :api-params (:screen_name user :count 50))
+  :api-params (:screen_name user :count 50 :include_rts t))
 
 (define-tl-command xyttr-mentions ()
   :buffer-name "*tw: mentions*"
   :api-func #'api-mentions
-  :api-params (:count 50))
+  :api-params (:count 50 :include_rts t))
 
 (define-tl-command xyttr-retweeted-by-me ()
-  :buffer-name "*tw: my RTs*"
+  :buffer-name "*tw: RTs by me*"
   :api-func #'api-retweeted-by-me
   :api-params (:count 20))
 
 (define-tl-command xyttr-retweeted-to-me ()
-  :buffer-name "*tw: friend RTs*"
-  :api-func #'api-mentions
+  :buffer-name "*tw: RTs to me*"
+  :api-func #'api-retweeted-to-me
   :api-params (:count 20))
 
 (define-tl-command xyttr-retweeted-of-me ()
-  :buffer-name "*tw: my RTed*"
+  :buffer-name "*tw: RT of me*"
   :api-func #'api-retweets-of-me
   :api-params (:count 20))
 
@@ -626,6 +709,41 @@
   :api-func #'api-search
   :api-params (:q q :rpp 50))
 
+
+;;; list timeline
+(defvar *list-subscriptions* nil)
+
+(defun subscriptions (&optional (user *default-user*))
+  (mapcar #'(lambda (l)
+	      (w/json (full_name id_str user.screen_name) l
+		(list full_name user.screen_name id_str)))
+	  (json-value (api-list-subscriptions :user user) lists)))
+
+(defun user::xyttr-list ()
+  (interactive)
+  (unless (xyttr-init-user) (quit))
+  (unless *list-subscriptions*
+    (setq *list-subscriptions* (subscriptions)))
+  (let* ((lname (completing-read "List: " (mapcar #'car *list-subscriptions*)
+				 :must-match t))
+	 (l (assoc lname *list-subscriptions* :test #'string=))
+	 (user (cadr l))
+	 (listid (caddr l))
+	 (buf (get-buffer-create (format nil "*tw: ~A" lname))))
+    (when *use-frame*
+      (select-pseudo-frame (or (find-pseudo-frame *frame-name*)
+			       (new-pseudo-frame *frame-name*))))
+    (set-buffer buf)
+    (unless (eq buffer-mode 'xyttr-timeline-mode)
+      (xyttr-timeline-mode)
+      (setf (modeconf-mode buffer-modeconf) :xyttr-list
+	    (modeconf-apifunc buffer-modeconf) #'api-list-statuses
+	    (modeconf-params buffer-modeconf) (list :user user :list_id listid))
+      (whenlet *auto-reload*
+	  (set-auto-reload buf *auto-reload*)))
+    (timeline-reload)
+    (setf (modeconf-unread buffer-modeconf) 0)
+    t))
 
 (defun user::tweet (status)
   (interactive "sTweet: ")
@@ -697,13 +815,6 @@
   (w/entry (id)
     (api-destroy :id id)))
 
-(defun copy-status-url ()
-  (interactive)
-  (w/entry (id user.screen_name)
-    (let ((url (format nil "http://twitter.com/~A/status/~A" user.screen_name id)))
-      (copy-to-clipboard url)
-      (message "Copied: ~A" url))))
-
 (defun toggle-favorite ()
   (interactive)
   (multiple-value-bind (from to status) (entry-point)
@@ -715,40 +826,50 @@
 	    (if state (api-favorites-destroy :id id)
 	      (api-favorites-create :id id))
 	    (setf state (not state))
-	    (save-excursion
-	      (setq buffer-read-only nil)
+	    (w/buffer-modifying ()
 	      (narrow-to-region sfrom sto)
 	      (delete-region (point-min) (point-max))
 	      (insert (if state "š" " "))
 	      (set-text-attribute (point-min) (point-max) (cons :fav state)
 				:foreground 11)
-	      (setq buffer-read-only t)
 	      (widen))))))))
 
+(defun status-url ()
+  (w/entry (id user.screen_name)
+    (format nil "http://twitter.com/~A/status/~A" user.screen_name id)))
 
-(defun show-parent-tweet ()
+(defun copy-status-url ()
   (interactive)
-  (w/entry (in_reply_to_status_id)
-    (when in_reply_to_status_id
-      (w/json (user.screen_name text)
-	  (api-show-status :id in_reply_to_status_id)
-	(popup-string (format nil "@~A: ~A" user.screen_name text)
-		      (point))))))
+  (w/entry (id user.screen_name)
+    (let ((url (status-url)))
+      (copy-to-clipboard url)
+      (message "Copied: ~A" url))))
 
-
-(defun close-buffer ()
+(defun show-irt-status ()
   (interactive)
-  (kill-buffer (selected-buffer))
-  (when (and *use-frame*
-	     (notany #'(lambda (b) (eq (buffer-local-value b 'ed:buffer-mode)
-				       'xyttr-timeline-mode))
-		     (buffer-list)))
-    (delete-pseudo-frame (find-pseudo-frame *frame-name*))))
+  (w/entry (id in_reply_to_status_id)
+    (whenlet irtid
+	(case (modeconf-mode buffer-modeconf)
+	  ((:xyttr-search :xyttr-search-global)
+	   (whenlet st (api-show-status :id id)
+	     (json-value st in_reply_to_status_id)))
+	  (t in_reply_to_status_id))
+      (whenlet irtst (api-show-status :id irtid)
+	(w/json (user.screen_name text) irtst
+	  (popup-string (format nil "@~A: ~A" user.screen_name text)
+			(point)))))))
 
-(defun test ()
+
+(defun timeline-buffer-p (buf)
+  (eq (buffer-local-value buf 'ed:buffer-mode) 'xyttr-timeline-mode))
+
+(defun close-timeline-buffer (&optional (buf (selected-buffer)))
   (interactive)
-  (multiple-value-bind (s e tag) (entry-point)
-    (msgbox "~S~%~%~S" buffer-modeconf tag)))
+  (when (timeline-buffer-p buf)
+    (disable-auto-reload buf)
+    (kill-buffer buf)
+    (when (and *use-frame* (notany #'timeline-buffer-p (buffer-list)))
+      (delete-pseudo-frame (find-pseudo-frame *frame-name*)))))
 
 
 ;;; for edit
@@ -756,6 +877,7 @@
       (get 'whenlet #1#) 2
       (get 'w/json #1#) 2
       (get 'w/entry #1#) 1
+      (get 'w/buffer-modifying #1#) 1
       (get 'define-api #1#) 1
       (get 'define-tl-command #1#) 2)
 

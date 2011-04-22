@@ -1,12 +1,25 @@
 ;;; -*- mode:lisp; package: xyttr -*-
 
-(require 'ldrpin)
-(require 'googl)
+(eval-when (:load-toplevel :compile-toplevel :execute)
+  (require 'ldrpin)
+  (require 'googl)
+  (require 'growl))
+
 
 (in-package "xyttr")
 
-(defun is-shorten? (url)
-  (string-match "http://\\([^/]+\\)/\\([^/]+\\)$" url))
+(defun pin-focused-url ()
+  (interactive)
+  (whenlet url (focused-url)
+    (w/entry (user.screen_name text)
+      (ldrpin:ldrpin-add (expand-short-url url)
+			 (format nil "@~A: ~A" user.screen_name text)))))
+
+(defun pin-status-url ()
+  (interactive)
+  (w/entry (user.screen_name text)
+    (ldrpin:ldrpin-add (status-url)
+		       (format nil "@~A: ~A" user.screen_name text))))
 
 (defun copy&popup-url ()
   (interactive)
@@ -24,17 +37,51 @@
       (copy-to-clipboard shorten)
       (message "Copied: ~A  (~A)" shorten url))))
 
-(defun pin-focused-url ()
+(defun dump-json (buf json)
+  (with-output-to-buffer (buf)
+    (labels ((rec (data indent)
+	       (cond ((consp data)
+		      (format t "{~%")
+		      (dolist (kv data)
+			(format t "~VT~A: " (+ (* indent 4) 2) (car kv))
+			(if (consp (cdr kv))
+			    (rec (cdr kv) (1+ indent))
+			  (format t "~S~%" (cdr kv))))
+		      (format t "~VT}~%" (* indent 4)))
+		     (t (format t "~VT~S~%") (* indent 4) data))))
+      (rec json 0))))
+
+(defun show-rawdata ()
   (interactive)
-  (whenlet url (focused-url)
-    (w/entry (user.screen_name text)
-      (ldrpin:ldrpin-add (expand-short-url url)
-			 (format nil "@~A: ~A" user.screen_name text)))))
+  (multiple-value-bind (s e tag) (entry-point)
+    (let ((buf (get-buffer-create "*tw:jsondata*")))
+      (setup-temp-buffer buf)
+      (dump-json buf tag)
+      (let ((km (make-sparse-keymap)))
+	(define-key km #\q `(lambda () (interactive)
+			      (delete-buffer ,buf)
+			      (ignore-errors (delete-window))))
+	(pop-to-buffer buf t)
+	(setq buffer-read-only t)
+	(use-keymap km)))))
+
+(defun show-in-growl ()
+  (interactive)
+  (w/entry #0=(text user.name user.screen_name user.profile_image_url retweeted_status)
+    (if retweeted_status
+	(w/json #0# retweeted_status
+	  #1=(growl:notify (format nil "@~A / ~A" user.screen_name user.name)
+			   text :icon user.profile_image_url))
+      #1#)))
+
 
 (let ((m *xyttr-timeline-keymap*))
   (define-key m '(#\c #\u) 'copy&popup-url)
   (define-key m '(#\c #\s) 'copy-shorten-url)
-  (define-key m #\P 'pin-focused-url)
+  (define-key m '(#\P #\l) 'pin-focused-url)
+  (define-key m '(#\P #\s) 'pin-status-url)
+  (define-key m #\T 'show-rawdata)
+  (define-key m #\G 'show-in-growl)
   )
 
 (provide "xyttr/config")
