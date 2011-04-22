@@ -97,7 +97,8 @@ NetInstallerからxml-http-requestとxl-jsonをインストールし、
 
 ## Author
 Yousuke Ushiki (<citrus.yubeshi@gmail.com>)
-@Yubeshi / @xyttr
+
+[@Yubeshi](http://twitter.com/Yubeshi/) / [@xyttr](http://twitter.com/xyttr/)
 
 ## Copyright
 MIT License を適用しています。
