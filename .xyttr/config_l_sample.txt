@@ -60,6 +60,9 @@
 			   text :icon user.profile_image_url))
       #1#)))
 
+(defun njslyr ()
+  (interactive)
+  (user::xyttr-user "NJSLYR"))
 
 (let ((m *xyttr-timeline-keymap*))
   (define-key m '(#\c #\u) 'copy&popup-url)
@@ -68,6 +71,7 @@
   (define-key m '(#\P #\s) 'pin-status-url)
   (define-key m #\T 'show-rawdata)
   (define-key m #\G 'show-in-growl)
+  (define-key m #\N 'njslyr)
   )
 
 (provide "xyttr/config")
