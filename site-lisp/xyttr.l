@@ -451,7 +451,7 @@
   (multiple-value-bind (start end tag)
       (find-text-attribute :entry :key #'safe-car :end (1+ p) :from-end t)
     (when start
-      (values start end (cdr tag)))))
+      (values start (cdr tag)))))
 
 (defun forward-entry ()
   (interactive)
@@ -745,27 +745,35 @@
     (setf (modeconf-unread buffer-modeconf) 0)
     t))
 
-(defun user::tweet (status)
-  (interactive "sTweet: ")
-  (when (string/= status "")
-    (api-update :status status)))
-
 
 ;;; actions
 (defmacro w/entry (keys &body body)
-  `(multiple-value-bind (#:s #:e #1=#:tag) (entry-point)
+  `(multiple-value-bind (#:s #1=#:tag) (entry-point)
      (when #1# (w/json ,keys #1# ,@body))))
 
-(defun tweet (status)
-  (interactive "sTweet: ")
-  (when (string/= status "")
-    (api-update :status status)
-    (timeline-reload)))
+(defun show-input-length ()
+  (let ((chars (- (point-max) (point-min))))
+    (message "~:[!! ~;~]~D •¶Žš (Žc‚è ~D)" (<= chars 140) chars (- 140 chars))))
 
-(defun mention () 
+(defun read-status (prompt &key default)
+  (add-hook '*post-command-hook* #'show-input-length)
+  (labels ((remover (buffer history)
+	     (delete-hook '*post-command-hook* #'show-input-length)
+	     (delete-hook '*exit-minibuffer-hook* #'remover)))
+    (add-hook '*exit-minibuffer-hook* #'remover))
+  (read-string prompt :default default))
+
+(defun tweet ()
+  (interactive)
+  (let ((status (read-status "Tweet: ")))
+    (when (string/= status "")
+      (api-update :status status)
+      (timeline-reload))))
+
+(defun mention ()
   (interactive)
   (w/entry (user.screen_name)
-    (let ((status (read-string "Tweet: "
+    (let ((status (read-status "Tweet: "
 			       :default (format nil "@~A " user.screen_name))))
       (when (string/= "" status)
 	(api-update :status status)
@@ -775,7 +783,7 @@
   (interactive)
   (w/entry (id user.screen_name text)
     (let* ((qt (format nil *quote-format* user.screen_name text))
-	   (status (read-string "Tweet: " :default qt)))
+	   (status (read-status "Tweet: " :default qt)))
       (when (string/= "" status)
 	(api-update :status status)
 	(timeline-reload)))))
@@ -783,7 +791,7 @@
 (defun reply-to ()
   (interactive)
   (w/entry (id user.screen_name text)
-    (let ((status (read-string "Reply: "
+    (let ((status (read-status "Reply: "
 			       :default (format nil "@~A " user.screen_name))))
       (when (string/= "" status)
 	(api-update :status status
@@ -794,7 +802,7 @@
   (interactive)
   (w/entry (id user.screen_name text)
     (let* ((qt (format nil " RT @~A: ~A" user.screen_name text))
-	   (status (read-string "Reply: " :default qt)))
+	   (status (read-status "Reply: " :default qt)))
       (when (string/= "" status)
 	(api-update :status status
 		    :in_reply_to_status_id id)
@@ -815,9 +823,10 @@
   (w/entry (id)
     (api-destroy :id id)))
 
+
 (defun toggle-favorite ()
   (interactive)
-  (multiple-value-bind (from to status) (entry-point)
+  (multiple-value-bind (from status) (entry-point)
     (multiple-value-bind (sfrom sto stag)
 	(find-text-attribute :fav :start from :key #'safe-car)
       (when sfrom
