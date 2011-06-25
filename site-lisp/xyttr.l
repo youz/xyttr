@@ -242,8 +242,9 @@
 	  nil)))))
 
 
-(defmacro define-api (name &key (auth t) (method 'get) (apiurl '*api-url*)
-			   path params key raw)
+(defmacro define-api (name params
+		      &key (auth t) (method 'get) (apiurl '*api-url*)
+			   path key raw)
   (unless path (error "define-api: missing 'path'"))
   `(progn
      (defun ,(symb "api-" name) (&key ,@params)
@@ -263,136 +264,117 @@
 
 ;;; timeline api
 (define-api public-timeline
+  (trim_user include_entities)
   :auth nil
-  :path   "/1/statuses/public_timeline.json"
-  :params (trim_user include_entities))
+  :path "/1/statuses/public_timeline.json")
 
 (define-api home-timeline
-  :path   "/1/statuses/home_timeline.json"
-  :params (since_id max_id count page trim_user include_entities))
+  (since_id max_id count page trim_user include_entities)
+  :path "/1/statuses/home_timeline.json")
 
 (define-api user-timeline
-  :path   "/1/statuses/user_timeline.json"
-  :params (user_id screen_name
-	   since_id max_id count page trim_user include_rts include_entities))
+  (user_id screen_name since_id max_id count page
+   trim_user include_rts include_entities)
+  :path "/1/statuses/user_timeline.json")
 
 (define-api mentions
-  :path "/1/statuses/mentions.json"
-  :params (since_id max_id count page trim_user include_rts include_entities))
+  (since_id max_id count page trim_user include_rts include_entities)
+  :path "/1/statuses/mentions.json")
 
 (define-api retweeted-by-me
-  :path "/1/statuses/retweeted_by_me.json"
-  :params (since_id max_id count page trim_user include_entities))
+  (since_id max_id count page trim_user include_entities)
+  :path "/1/statuses/retweeted_by_me.json")
 
 (define-api retweeted-to-me
-  :path "/1/statuses/retweeted_to_me.json"
-  :params (since_id max_id count page trim_user include_entities))
+  (since_id max_id count page trim_user include_entities)
+  :path "/1/statuses/retweeted_to_me.json")
 
 (define-api retweets-of-me
-  :path "/1/statuses/retweets_of_me.json"
-  :params (since_id max_id count page trim_user include_entities))
+  (since_id max_id count page trim_user include_entities)
+  :path "/1/statuses/retweets_of_me.json")
 
-(define-api show-status
-  :params (id)
-  :path   (format nil "/1/statuses/show/~D.json" id))
+(define-api show-status (id)
+  :path (format nil "/1/statuses/show/~D.json" id))
 
 
 ;;; post api
 (define-api update
+  (status in_reply_to_status_id lat long place_id display_coordinates)
   :method post
-  :path   "/1/statuses/update.json"
-  :params (status in_reply_to_status_id
-	   lat long place_id display_coordinates))
+  :path "/1/statuses/update.json")
 
-(define-api destroy
+(define-api destroy (id)
   :method post
-  :params (id)
-  :path   (format nil "/1/statuses/destroy/~D.json" id))
+  :path (format nil "/1/statuses/destroy/~D.json" id))
 
 
 ;;; retweet api
-(define-api retweet
+(define-api retweet (id)
   :method post
-  :params (id)
-  :path   (format nil "/1/statuses/retweet/~D.json" id))
+  :path (format nil "/1/statuses/retweet/~D.json" id))
 
-(define-api retweets
+(define-api retweets (id count)
   :method post
-  :params (id count)
-  :path   (format nil "/1/statuses/retweets/~D.json" id))
+  :path (format nil "/1/statuses/retweets/~D.json" id))
 
-(define-api retweeted_by
-  :params (id count page)
-  :path   (format nil "/1/statuses/~D/retweeted_by.json" id))
+(define-api retweeted_by (id count page)
+  :path (format nil "/1/statuses/~D/retweeted_by.json" id))
 
-(define-api retweeted_by/ids
-  :params (id count page)
-  :path   (format nil "/1/statuses/~D/retweeted_by/ids.json" id))
+(define-api retweeted_by/ids (id count page)
+  :path (format nil "/1/statuses/~D/retweeted_by/ids.json" id))
 
 ;;; favorites api
-(define-api favorites
-  :params (id page)
-  :path   (format nil "/1/favorites~:[~;/~:*~A~].json" id))
+(define-api favorites (id page)
+  :path (format nil "/1/favorites~:[~;/~:*~A~].json" id))
 
-(define-api favorites-create
+(define-api favorites-create (id)
   :method post
-  :params (id)
-  :path   (format nil "/1/favorites/create/~D.json" id))
+  :path (format nil "/1/favorites/create/~D.json" id))
 
-(define-api favorites-destroy
+(define-api favorites-destroy (id)
   :method post
-  :params (id)
-  :path   (format nil "/1/favorites/destroy/~D.json" id))
+  :path (format nil "/1/favorites/destroy/~D.json" id))
 
-(define-api test
-  :params ()
-  :path   "/1/help/test.json"
+(define-api test ()
+  :path "/1/help/test.json"
   :raw t)
 
 
 ;;; list api
-(define-api list-create
+(define-api list-create (user name mode description)
   :method post
-  :params (user name mode description)
   :path (format nil "/1/~A/lists.json" user))
 
-(define-api list-update
+(define-api list-update (user list_id name mode description)
   :method post
-  :params (user list_id name mode description)
   :path (format nil "/1/~A/lists/~A.json" user list_id))
 
-(define-api list-index
-  :params (user cursor)
+(define-api list-index (user cursor)
   :path (format nil "/1/~A/lists.json" user))
 
-(define-api list-info
-  :params (user list_id)
+(define-api list-info (user list_id)
   :path (format nil "/1/~A/lists/~A.json" user list_id))
 
-(define-api list-delete
+(define-api list-delete (user list_id)
   :method post
-  :marams (user list_id (_method DELETE))
   :path (format nil "/1/~A/lists/~A.json" user list_id))
 
-(define-api list-statuses
-  :params (user list_id since_id max_id per_page page)
+(define-api list-statuses (user list_id since_id max_id per_page page)
   :path (format nil "/1/~A/lists/~A/statuses.json" user list_id))
 
-(define-api list-memberships
-  :params (user list_id)
+(define-api list-memberships (user list_id)
   :path (format nil "/1/~A/lists/memberships.json" user list_id))
 
-(define-api list-subscriptions
-  :params (user cursor)
+(define-api list-subscriptions (user cursor)
   :path (format nil "/1/~A/lists/subscriptions.json" user))
 
 
 ;;; search api
 (define-api search
+  (q lang rpp page max_id since_id since #+:nil until
+   geocode show_ser result_type)
   :apiurl *search-url*
   :path "/search.json"
-  :params (q lang rpp page max_id since_id since #+:nil until
-	   geocode show_ser result_type)
   :key #'search-result-to-statuses)
 
 (defun search-result-to-statuses (res)
