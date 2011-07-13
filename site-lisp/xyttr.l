@@ -84,7 +84,7 @@
   )
 
 (defvar *url-regexp* "https?://[-0-9A-Za-z_.!~*'();/?:@&=+$,%#|]+")
-(defvar *hashtag-regexp* "#\\([_a-zA-Z0-9]+\\)")
+(defvar *hashtag-regexp* "\\(?:^\\|[ .,｡､　，．、。]\\)[#＃]\\([_a-zA-Z0-9０-９一-龠ァ-ヶぁ-んー々]+\\)")
 (defvar *user-regexp* "@\\([_a-zA-Z0-9]+\\)")
 
 (defvar *link-regexps*
@@ -370,13 +370,6 @@
 
 
 ;;; search api
-(define-api search
-  (q lang rpp page max_id since_id since #+:nil until
-   geocode show_ser result_type)
-  :apiurl *search-url*
-  :path "/search.json"
-  :key #'search-result-to-statuses)
-
 (defun search-result-to-statuses (res)
   (labels
       ((fixdate (d)
@@ -390,6 +383,13 @@
 	     ("created_at" . ,(fixdate created_at))
 	     ("text" . ,text)))))
     (mapcar #'convert (json-value res results))))
+
+(define-api search
+  (q lang rpp page max_id since_id since #+:nil until
+   geocode show_ser result_type)
+  :apiurl *search-url*
+  :path "/search.json"
+  :key #'search-result-to-statuses)
 
 
 ;;; timeline
