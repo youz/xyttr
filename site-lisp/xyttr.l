@@ -84,7 +84,7 @@
   )
 
 (defvar *url-regexp* "https?://[-0-9A-Za-z_.!~*'();/?:@&=+$,%#|]+")
-(defvar *hashtag-regexp* "[#”]\\([_a-zA-Z0-9‚O-‚Xˆê-êƒ@-ƒ–‚Ÿ-‚ñ[XTURS]+\\)")
+(defvar *hashtag-regexp* "\\(^\\|[ @,.¤¡CDAB]\\)\\([#”]\\([_a-zA-Z0-9‚O-‚Xˆê-êƒ@-ƒ–‚Ÿ-‚ñ[XTURS]+\\)\\)")
 (defvar *user-regexp* "@\\([_a-zA-Z0-9]+\\)")
 
 (defvar *link-regexps*
@@ -94,7 +94,7 @@
 
 (defvar *regexp-keyword-list*
   (compile-regexp-keyword-list
-   `((,*hashtag-regexp* t (:keyword 1))
+   `((,*hashtag-regexp* t (:keyword 1) nil 2)
      (,*user-regexp* t (:keyword 0)))))
 
 
@@ -463,18 +463,24 @@
   (get-link (point) *url-regexp*))
 
 (defun focused-hashtag ()
-  (get-link (point) *hashtag-regexp* 1))
+  (get-link (point) *hashtag-regexp* 3))
 
 (defun focused-user ()
   (get-link (point) *user-regexp* 1))
 
 (defun next-link ()
   (interactive)
-  (scan-buffer (format nil "~{~A~^\\|~}" *link-regexps*) :regexp t :no-dup t))
+  (when (and (scan-buffer (format nil "~{~A~^\\|~}" *link-regexps*) :regexp t :no-dup t)
+	     (equal "#" (buffer-substring (1+ (point)) (+ (point) 2))))
+    (forward-char)))
 
 (defun previous-link ()
   (interactive)
-  (scan-buffer (format nil "~{~A~^\\|~}" *link-regexps*) :regexp t :no-dup t :reverse t))
+  (when (focused-hashtag)
+    (goto-char (match-beginning 0)))
+  (when (and (scan-buffer (format nil "~{~A~^\\|~}" *link-regexps*) :regexp t :no-dup t :reverse t)
+	     (equal "#" (buffer-substring (1+ (point)) (+ (point) 2))))
+    (forward-char)))
 
 (defun open-link ()
   (interactive)
