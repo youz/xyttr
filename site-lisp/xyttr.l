@@ -84,7 +84,7 @@
   )
 
 (defvar *url-regexp* "https?://[-0-9A-Za-z_.!~*'();/?:@&=+$,%#|]+")
-(defvar *hashtag-regexp* "\\(^\\|[ 　,.､｡，．、。]\\)\\([#＃]\\([_a-zA-Z0-9０-９一-龠ァ-ヶぁ-んー々ゝゞヽヾ]+\\)\\)")
+(defvar *hashtag-regexp* "\\(^\\|[ 　,.､｡，．、。]\\)\\([#＃]\\([_a-zA-Z0-9０-ヶヽ-々ー亜-黑]+\\)\\)")
 (defvar *user-regexp* "@\\([_a-zA-Z0-9]+\\)")
 
 (defvar *link-regexps*
