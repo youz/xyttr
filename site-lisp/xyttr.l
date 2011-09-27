@@ -83,8 +83,9 @@
   (define-key m #\p 'show-irt-status)
   )
 
-(defvar *url-regexp* "https?://[-0-9A-Za-z_.!~*'();/?:@&=+$,%#|]+")
-(defvar *hashtag-regexp* "\\(^\\|[ 　,.､｡，．、。]\\)\\([#＃]\\([_a-zA-Z0-9０-ヶヽ-々ー亜-黑]+\\)\\)")
+;;; link elements
+(defvar *url-regexp* "https?://[-0-9A-Za-z_.!~*';/?:@&=+$,%#|]+")
+(defvar *hashtag-regexp* "\\(^\\|[ 　,.､｡，．、。]\\)\\([#＃]\\([_a-zA-Z0-9ｦ-ﾟ０-ヶヽ-々ー亜-黑]+\\)\\)")
 (defvar *user-regexp* "@\\([_a-zA-Z0-9]+\\)")
 
 (defvar *link-regexps*
