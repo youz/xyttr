@@ -414,13 +414,12 @@
     (w/buffer-modifying (buf)
       (let ((wc (max 20 (1- (window-columns)))))
 	(with-output-to-buffer (buf point)
-	  (terpri)
 	  (dolist (st statuses)
 	    (w/json (user.name user.screen_name created_at text source favorited
 			       retweeted_status retweet_count) st
 	      (let ((start #1=(buffer-stream-point *standard-output*)))
-		(format t "~V@{-~}~%@~A ~@[/ ~A~] [~A] ~:[ ~;Åö~]"
-			wc user.screen_name user.name
+		(format t " ~V@{-~}~%@~A ~@[/ ~A~] [~A] ~:[ ~;Åö~]"
+			(1- wc) user.screen_name user.name
 			(format-date-string "%y/%m/%d (%a) %H:%M:%S"
 					    (parse-date created_at))
 			favorited)
@@ -437,7 +436,7 @@
 			      (format nil "RT~@[(~A)~] @~A: ~A"
 				      retweet_count user.screen_name (entity2char text)))
 			  (entity2char text)))
-		(set-text-attribute start (+ start wc) (cons :entry st) :foreground 14))))
+		(set-text-attribute (1+ start) (+ start wc) (cons :entry st) :foreground 14))))
 	  (when display-count
 	    (format t "~V@{=~}~%~D new tweets" wc (length statuses)))
 	  )))
