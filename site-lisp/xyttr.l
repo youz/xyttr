@@ -36,12 +36,13 @@
 (defconstant *X-Twitter-Client-URL* "http://github.com/youz/xyttr")
 (defconstant *X-Twitter-Client-Version* "0.1.0")
 
-;;; var
+;;; auth
 (defvar *consumer-key*    "9tO9vX1QgwWPqoPNnhcMw")
 (defvar *consumer-secret* "asn1tSaaQbs1wCm5gOVUoNdfHPGO4j3WuFKfsNKW8I")
 (defvar *token* nil)
 (defvar *token-secret* nil)
 
+;;; keymap
 (defvar *xyttr-timeline-keymap* (make-sparse-keymap))
 
 (let ((m *xyttr-timeline-keymap*))
@@ -99,6 +100,7 @@
      (,*user-regexp* t (:keyword 0)))))
 
 
+;;; buffer local data
 (defstruct modeconf
   "xyttr mode config (buffer-local)"
   user        ; username (= screen name)
@@ -113,7 +115,6 @@
   "timeline data (buffer-local)"
   alldata last-id first-id page)
 
-;;; local-variables
 (defvar-local buffer-modeconf nil)
 (defvar-local buffer-timeline nil)
 
