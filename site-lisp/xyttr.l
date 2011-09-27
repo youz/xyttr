@@ -17,7 +17,9 @@
 	  *search-lang*
 	  *quote-format*
 	  *use-frame*
-	  *frame-name*))
+	  *frame-name*
+	  *timeline-filter*
+	  *search-filter*))
 
 (defvar *default-user* nil)
 (defvar *auto-reload* nil
@@ -28,6 +30,11 @@
 (defvar *use-frame* t)
 (defvar *frame-name* "xyttr")
 
+(defvar *timeline-filter* nil
+  "list of filtering functions for timeline")
+
+(defvar *search-filter* nil
+  "list of filtering functions for search result")
 
 ;;; const
 (defconstant *api-url*    "http://api.twitter.com")
@@ -382,14 +389,18 @@
       ((fixdate (d)
 	 (let ((elms (split-string (remove #\, d) #\SPC)))
 	   (format nil "~{~A~^ ~}"
-	     (mapcar #'(lambda (n) (nth n elms)) '(0 2 1 4 5 3)))))
+		   (mapcar #'(lambda (n) (nth n elms)) '(0 2 1 4 5 3)))))
        (convert (e)
 	 (w/json (id from_user created_at text) e
 	   `(("id" . ,id)
 	     ("user" ("screen_name" . ,from_user))
 	     ("created_at" . ,(fixdate created_at))
 	     ("text" . ,text)))))
-    (mapcar #'convert (json-value res results))))
+    (loop for st in (json-value res results)
+      for c = (reduce #'(lambda (s f) (funcall f s)) *search-filter*
+		      :initial-value (convert st))
+      when c collect c)))
+
 
 (define-api search
   (q lang rpp page max_id since_id since #+:nil until
@@ -510,13 +521,17 @@
 (defun timeline-reload (&optional (buf (selected-buffer)))
   (interactive)
   (when (eq (buffer-local-value buf 'ed:buffer-mode) 'xyttr-timeline-mode)
-    (let ((name  (substitute-string (buffer-name buf) " ([0-9]+)$" ""))
-	  (conf (buffer-local-value buf 'buffer-modeconf))
-	  (tl (buffer-local-value buf 'buffer-timeline)))
+    (let* ((name  (substitute-string (buffer-name buf) " ([0-9]+)$" ""))
+	   (conf (buffer-local-value buf 'buffer-modeconf))
+	   (tl (buffer-local-value buf 'buffer-timeline))
+	   (res (apply (modeconf-apifunc conf)
+		       :since_id #1=(timeline-last-id tl)
+		       (modeconf-params conf))))
       (whenlet statuses
-	  (apply (modeconf-apifunc conf)
-		 :since_id #1=(timeline-last-id tl)
-		 (modeconf-params conf))
+	  (loop for s in res
+	    for c = (reduce #'(lambda (s f) (funcall f s)) *timeline-filter*
+			    :initial-value s)
+	    when c collect c)
 	(incf #2=(modeconf-unread conf) (length statuses))
 	(timeline-draw-statuses buf statuses)
 	(setf #1# (json-value (car statuses) id)
