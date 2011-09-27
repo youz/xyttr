@@ -131,6 +131,11 @@
 (defmacro whenlet (var expr &body body)
   `(let ((,var ,expr)) (when ,var ,@body)))
 
+(defmacro whilet (var test &body body)
+  `(do ((,var ,test ,test))
+       ((not ,var))
+     ,@body))
+
 (defmacro json-value (obj key)
   (reduce #'(lambda (o k) `(cdr (assoc ,k ,o :test #'string=)))
 	  (split-string (symbol-name key) #\.)
