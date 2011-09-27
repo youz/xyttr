@@ -195,6 +195,21 @@
      (setq ed:buffer-read-only t)))
 
 
+;;; plugin
+(defvar *plugins* nil "loaded plugins")
+
+(defun load-plugin (plugin &optional force)
+  (when (or force (not (find plugin *plugins* :test #'string=)))
+    (let* ((name (string plugin))
+	   (path (let ((*load-path* `("~/.xyttr/")))
+		   (find-load-path name))))
+      (unless path
+	(error "plugin not found: ~A" name))
+      (load-file path)
+      (push name *plugins*)
+      t)))
+
+
 ;;; auth
 (defun load-token (user)
   (let ((tokenfile (concat "~/.xyttr/token_" user)))
@@ -632,16 +647,8 @@
 		(disable-auto-reload buf))
 	      t))
 
-  (unless (find "xyttr/config" *modules* :test #'string=)
-    (let* ((config (merge-pathnames ".xyttr/config.l" (si:system-root)))
-	   (lc (compile-file-pathname config)))
-      (when (file-exist-p config)
-	(if (file-exist-p lc)
-	    (if (file-newer-than-file-p config lc)
-		(load-file config)
-	      (load-file lc))
-	  (load-file config))))))
-
+  (when (file-exist-p (merge-pathnames ".xyttr/config.l" (si:system-root)))
+    (load-plugin "config")))
 
 ;;; user command
 (defmacro define-tl-command (name params &key interactive buffer-name api-func api-params hook auto-reload)
@@ -896,3 +903,5 @@
       (get 'define-api #1#) 1
       (get 'define-tl-command #1#) 2)
 
+
+(provide "xyttr")
