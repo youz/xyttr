@@ -246,7 +246,7 @@
 
 
 ;;; api
-(defun api-request-sync (method host path params)
+(defun api-request (method host path params)
   (let* ((url (concat host path))
 	 (cred (list :consumer-key *consumer-key*
 		     :consumer-secret *consumer-secret*
@@ -273,16 +273,11 @@
   (unless path (error "define-api: missing 'path'"))
   `(progn
      (defun ,(symb "api-" name) (&key ,@params)
-       (funcall
-	,(or key '#'identity)
-	(funcall #'api-request-sync ',method ,apiurl ,path
-		 (append
-		  ,@(loop for p in params
-		      for n = (symbol-name p)
-		      collect
-		      `(if ,#1=(intern n)
-			 ,(list 'list (intern n "keyword") #1#))))
-		 )))
+       (funcall ,(or key '#'identity)
+	#0=(api-request ',method ,apiurl ,path
+	     (append
+	      ,@(loop for p in params for n = (symbol-name p)
+		  collect `(if ,p ,(list 'list (intern n "keyword") p)))))))
      ))
 
 
