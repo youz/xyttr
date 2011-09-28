@@ -201,7 +201,7 @@
 (defun load-plugin (plugin &optional force)
   (when (or force (not (find plugin *plugins* :test #'string=)))
     (let* ((name (string plugin))
-	   (path (let ((*load-path* `("~/.xyttr/")))
+	   (path (let ((*load-path* '("~/.xyttr/")))
 		   (find-load-path name))))
       (unless path
 	(error "plugin not found: ~A" name))
@@ -246,7 +246,7 @@
 
 
 ;;; api
-(defun api-request-sync (method host path params &key raw)
+(defun api-request-sync (method host path params)
   (let* ((url (concat host path))
 	 (cred (list :consumer-key *consumer-key*
 		     :consumer-secret *consumer-secret*
@@ -261,8 +261,7 @@
 			     :key #'xhr:xhr-response-values))
 	  (xhr:xhr-request method url params . #1#))
       (if (= status 200)
-	  (if raw res
-	    (json:json-decode res))
+	  (json:json-decode res)
 	(let ((msg (format nil "http status: ~A~%~A" status res)))
 	  (message-box msg "request failed" '(:exclamation :ok))
 	  nil)))))
@@ -270,7 +269,7 @@
 
 (defmacro define-api (name params
 		      &key (auth t) (method 'get) (apiurl '*api-url*)
-			   path key raw)
+			   path key)
   (unless path (error "define-api: missing 'path'"))
   `(progn
      (defun ,(symb "api-" name) (&key ,@params)
@@ -283,7 +282,6 @@
 		      collect
 		      `(if ,#1=(intern n)
 			 ,(list 'list (intern n "keyword") #1#))))
-		 ,@(when raw (list :raw t))
 		 )))
      ))
 
@@ -360,10 +358,6 @@
 (define-api favorites-destroy (id)
   :method post
   :path (format nil "/1/favorites/destroy/~D.json" id))
-
-(define-api test ()
-  :path "/1/help/test.json"
-  :raw t)
 
 
 ;;; list api
