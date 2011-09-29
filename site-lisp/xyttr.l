@@ -276,8 +276,9 @@
        (funcall ,(or key '#'identity)
 	#0=(api-request ',method ,apiurl ,path
 	     (append
-	      ,@(loop for p in params for n = (symbol-name p)
-		  collect `(if ,p ,(list 'list (intern n "keyword") p)))))))
+	      ,@(mapcar #'(lambda (p)
+			    `(if ,p ,(list 'list (intern (string p) "keyword") p)))
+			params)))))
      ))
 
 
@@ -397,10 +398,11 @@
 	     ("user" ("screen_name" . ,from_user))
 	     ("created_at" . ,(fixdate created_at))
 	     ("text" . ,text)))))
-    (loop for st in (json-value res results)
-      for c = (reduce #'(lambda (s f) (funcall f s)) *search-filter*
-		      :initial-value (convert st))
-      when c collect c)))
+    (delete-if-not #'(lambda (st)
+		       (reduce (lambda (s f) (funcall f s))
+			       *search-filter*
+			       :initial-value st))
+		   (mapcar #'convert (json-value res results)))))
 
 
 (define-api search
@@ -528,10 +530,11 @@
 		       :since_id #1=(timeline-last-id tl)
 		       (modeconf-params conf))))
       (whenlet statuses
-	  (loop for s in res
-	    for c = (reduce #'(lambda (s f) (funcall f s)) *timeline-filter*
-			    :initial-value s)
-	    when c collect c)
+	  (delete-if-not #'(lambda (st)
+			     (reduce (lambda (s f) (funcall f s))
+				     *timeline-filter*
+				     :initial-value st))
+			 res)
 	(incf #2=(modeconf-unread conf) (length statuses))
 	(timeline-draw-statuses buf statuses)
 	(setf #1# (json-value (car statuses) id)
