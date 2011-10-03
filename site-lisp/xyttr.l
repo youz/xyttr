@@ -18,8 +18,7 @@
 	  *quote-format*
 	  *use-frame*
 	  *frame-name*
-	  *timeline-filter*
-	  *search-filter*))
+	  *timeline-filter*))
 
 (defvar *default-user* nil)
 (defvar *auto-reload* nil
@@ -32,9 +31,6 @@
 
 (defvar *timeline-filter* nil
   "list of filtering functions for timeline")
-
-(defvar *search-filter* nil
-  "list of filtering functions for search result")
 
 ;;; const
 (defconstant *api-url*    "http://api.twitter.com")
@@ -142,6 +138,13 @@
   `(do ((,var ,test ,test))
        ((not ,var))
      ,@body))
+
+(defun filter (filter-list xs)
+  (flet ((filter1 (x)
+	   (reduce #'(lambda (x f) (if x (funcall f x) nil))
+		   filter-list
+		   :initial-value x)))
+    (delete-if-not #'filter1 xs)))
 
 (defmacro json-value (obj key)
   (reduce #'(lambda (o k) `(cdr (assoc ,k ,o :test #'string=)))
@@ -398,11 +401,7 @@
 	     ("user" ("screen_name" . ,from_user))
 	     ("created_at" . ,(fixdate created_at))
 	     ("text" . ,text)))))
-    (delete-if-not #'(lambda (st)
-		       (reduce (lambda (s f) (funcall f s))
-			       *search-filter*
-			       :initial-value st))
-		   (mapcar #'convert (json-value res results)))))
+    (mapcar #'convert (json-value res results))))
 
 
 (define-api search
@@ -527,20 +526,16 @@
 	   (conf (buffer-local-value buf 'buffer-modeconf))
 	   (tl (buffer-local-value buf 'buffer-timeline))
 	   (res (apply (modeconf-apifunc conf)
-		       :since_id #1=(timeline-last-id tl)
+		       :since_id #0=(timeline-last-id tl)
 		       (modeconf-params conf))))
-      (whenlet statuses
-	  (delete-if-not #'(lambda (st)
-			     (reduce (lambda (s f) (funcall f s))
-				     *timeline-filter*
-				     :initial-value st))
-			 res)
-	(incf #2=(modeconf-unread conf) (length statuses))
-	(timeline-draw-statuses buf statuses)
-	(setf #1# (json-value (car statuses) id)
-	      #3=(timeline-alldata tl) (append statuses #3#))
-	(unless #4=(timeline-first-id tl)
-	  (setf #4# (json-value (car (last statuses)) id))))
+      (when res
+	(setf #0# (json-value (car res) id))
+	(unless #1=(timeline-first-id tl)
+	  (setf #1# (json-value (car (last res)) id)))
+	(whenlet statuses (filter *timeline-filter* res)
+	  (incf #2=(modeconf-unread conf) (length statuses))
+	  (timeline-draw-statuses buf statuses)
+	  (setf #3=(timeline-alldata tl) (append statuses #3#))))
       (rename-buffer (format nil "~A~[~:; (~D)~]" name #2# #2#) buf)
       (refresh-screen)
       t)))
@@ -569,24 +564,22 @@
 	       (set-auto-reload (selected-buffer) *auto-reload*)))
 	   *auto-reload*))
 
-
-
 (defun timeline-append-page ()
   (interactive)
   (whenlet id (and (eq buffer-mode 'xyttr-timeline-mode)
 		   #1=(timeline-first-id buffer-timeline))
     (let* ((buf (selected-buffer))
-	   (name  (substitute-string (buffer-name buf) " ([0-9]+)$" "")))
-      (whenlet statuses
-	  (apply (modeconf-apifunc buffer-modeconf)
-		 :max_id (1- id) (modeconf-params buffer-modeconf))
+	   (name  (substitute-string (buffer-name buf) " ([0-9]+)$" ""))
+	   (res (apply (modeconf-apifunc buffer-modeconf)
+		       :max_id (1- id) (modeconf-params buffer-modeconf))))
+      (whenlet statuses (filter *timeline-filter* res)
 	(timeline-draw-statuses (selected-buffer) statuses
 				:point (point-max)
 				:display-count nil)
 	(recenter)
 	(setf #1# (json-value (car (last statuses)) id))
-	(nconc (timeline-alldata buffer-timeline) statuses)))
-      t))
+	(nconc (timeline-alldata buffer-timeline) statuses)
+	t))))
 
 
 
