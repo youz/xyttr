@@ -52,6 +52,7 @@
   ;; open timeline
   (define-key m #\U 'user::xyttr-user)
   (define-key m #\M 'user::xyttr-mentions)
+  (define-key m #\M-M 'user::xyttr-messages)
   (define-key m #\F 'user::xyttr-favorites)
   (define-key m #\s 'user::xyttr-search)
   (define-key m #\S 'user::xyttr-search-global)
@@ -72,6 +73,7 @@
   (define-key m #\u 'tweet)
   (define-key m #\@ 'mention)
   (define-key m #\` 'reply-to)
+  (define-key m '(#\d #\m) 'send-message)
   (define-key m #\f 'toggle-favorite)
   (define-key m '(#\r #\t) 'retweet)
   (define-key m '(#\r #\u) 'tweet-with-quote)
@@ -388,6 +390,41 @@
   :path (format nil "/1/~A/lists/subscriptions.json" user))
 
 
+;;; direct message api
+(defun messages-to-statuses (res)
+  (flet
+      ((convert (e)
+	 (w/json (recipient.name recipient.screen_name
+		  sender.name sender.screen_name) e
+	   `(,@e ("user"
+		  ("name" . ,(format nil "~A -> ~A" sender.name recipient.name))
+		  ("screen_name" . ,(format nil "~A -> @~A" sender.screen_name recipient.screen_name)))))))
+    (mapcar #'convert res)))
+
+(define-api direct-messages (since_id max_id count page)
+  :path   "/1/direct_messages.json"
+  :key #'messages-to-statuses)
+
+(define-api direct-messages-sent (since_id max_id count page)
+  :path   "/1/direct_messages/sent.json"
+  :key #'messages-to-statuses)
+
+(define-api direct-messages-new (user text)
+  :method post
+  :path   "/1/direct_messages/new.json")
+
+(define-api direct-messages-destroy (id)
+  :method post
+  :path   (format nil "/1/direct_messages/destroy/~D.json" id))
+
+(defun api-direct-messages-all (&key since_id max_id count page)
+  (let* ((params (list :since_id since_id :max_id max_id :count count :page page))
+	 (received (apply #'api-direct-messages params))
+	 (sent (apply #'api-direct-messages-sent params)))
+    (sort (append received sent) #'>
+	  :key #'(lambda (e) (json-value e id)))))
+
+
 ;;; search api
 (defun search-result-to-statuses (res)
   (labels
@@ -403,7 +440,6 @@
 	     ("text" . ,text)))))
     (mapcar #'convert (json-value res results))))
 
-
 (define-api search
   (q lang rpp page max_id since_id since #+:nil until
    geocode show_ser result_type)
@@ -412,7 +448,7 @@
   :key #'search-result-to-statuses)
 
 
-;;; timeline
+;;; timeline buffer
 (defun timeline-draw-statuses (buf statuses &key (point 0) (display-count nil))
   (save-excursion
     (set-buffer buf)
@@ -694,6 +730,10 @@
   :api-params (:page 1)
   :auto-reload nil)
 
+(define-tl-command xyttr-messages ()
+  :buffer-name "*tw: messages*"
+  :api-func #'api-direct-messages-all
+  :api-params (:count 20))
 
 (define-tl-command xyttr-search (q)
   :interactive "sSearch Twitter: "
@@ -814,6 +854,14 @@
 		    (subseq text 0 (min #1=(length text) 50))
 		    (< #1# 50))
       (api-retweet :id id))))
+
+(defun send-message ()
+  (interactive)
+  (w/entry (user.id user.screen_name)
+    (let ((status (read-status (format nil "DM to @~A: " user.screen_name))))
+      (when (string/= "" status)
+	(api-direct-messages-new :user user.screen_name
+				 :text status)))))
 
 
 (defun destroy-status ()
