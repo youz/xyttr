@@ -252,6 +252,23 @@
 
 
 ;;; api
+(define-condition request-error (network-error)
+  (host path method status response)
+  (:report
+   (lambda (c s)
+     (format s "xyttr request failed~%~
+                host: ~A~%~
+                path: ~A~%~
+                method: ~A~%~
+                status: ~A~%~
+                response: ~A"
+	     (request-error-host c)
+	     (request-error-path c)
+	     (request-error-method c)
+	     (request-error-status c)
+	     (request-error-response c)
+	     ))))
+
 (defun api-request (method host path params)
   (let* ((url (concat host path))
 	 (cred (list :consumer-key *consumer-key*
@@ -268,10 +285,9 @@
 	  (xhr:xhr-request method url params . #1#))
       (if (= status 200)
 	  (json:json-decode res)
-	(let ((msg (format nil "http status: ~A~%~A" status res)))
-	  (message-box msg "request failed" '(:exclamation :ok))
-	  nil)))))
-
+	(error 'request-error
+	       :host host :path path :method method
+	       :status status :response res)))))
 
 (defmacro define-api (name params
 		      &key (auth t) (method 'get) (apiurl '*api-url*)
