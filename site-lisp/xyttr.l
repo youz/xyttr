@@ -37,7 +37,7 @@
 (defconstant *search-url* "http://search.twitter.com")
 (defconstant *X-Twitter-Client* "xyttr")
 (defconstant *X-Twitter-Client-URL* "http://github.com/youz/xyttr")
-(defconstant *X-Twitter-Client-Version* "0.1.0")
+(defconstant *X-Twitter-Client-Version* "0.5.0")
 
 ;;; auth
 (defvar *consumer-key*    "9tO9vX1QgwWPqoPNnhcMw")
@@ -292,19 +292,64 @@
 	       :host host :path path :method method
 	       :status status :response res)))))
 
+(defun api-request-async (method host path params
+			  &key raw onsuccess onfailure oncomplete handler)
+  (let* ((url (concat host path))
+	 (cred (list :consumer-key *consumer-key*
+		     :consumer-secret *consumer-secret*
+		     :token *token*
+		     :token-secret *token-secret*))
+	 (auth (oauth:auth-header cred method url params))
+	 (succ (lambda #0=(res status header)
+		 (if onsuccess
+		     (funcall onsuccess (json:json-decode res))
+		   (message "request ok: ~A ~A" status path))))
+	 (fail (or onfailure
+		   (lambda #0#
+		     (error 'request-error
+			    :host host :path path :method method
+			    :status status :response response)))))
+    (if (eq method 'get)
+	(xhr:xhr-get-async url :query params .
+			   #1=(:headers `(:Authorization ,auth)
+			       :encoding *encoding-utf8n*
+			       :key #'xhr:xhr-response-values
+			       :onsuccess succ
+			       :onfailure fail
+			       :oncomplete oncomplete
+			       :handler handler))
+      (xhr:xhr-request-async method url params . #1#))))
+
 (defmacro define-api (name params
 		      &key (auth t) (method 'get) (apiurl '*api-url*)
 			   path key)
   (unless path (error "define-api: missing 'path'"))
-  `(progn
-     (defun ,(symb "api-" name) (&key ,@params)
-       (funcall ,(or key '#'identity)
-	#0=(api-request ',method ,apiurl ,path
-	     (append
-	      ,@(mapcar #'(lambda (p)
-			    `(if ,p ,(list 'list (intern (string p) "keyword") p)))
-			params)))))
-     ))
+  (let ((sync (symb "api-" name))
+	(async (symb "api-" name "-async")))
+    `(progn
+       (defun ,sync (&key ,@params)
+	 ,(if (null key)
+	      `#0=(api-request
+		  ',method ,apiurl ,path
+		   #1=(append
+		       ,@(mapcar #'(lambda (p)
+				     `(if ,p ,(list 'list (kwd p) p)))
+				 params)))
+	    `(funcall ,key #0#)))
+
+       (defun ,async (&key ,@params
+			   onsuccess onfailure oncomplete handler)
+	 (api-request-async
+	  ',method ,apiurl ,path #1#
+	  :onsuccess ,(if (null key) 'onsuccess
+			`(lambda (#2=#:json)
+			   (funcall ,key
+				    (funcall onsuccess #2#))))
+	  :onfailure onfailure
+	  :oncomplete oncomplete
+	  :handler handler))
+       (export '(,sync ,async)))
+    ))
 
 
 ;;; timeline api
