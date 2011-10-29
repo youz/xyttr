@@ -4,18 +4,21 @@ xyzzy上で動作するミニマムなtwitterクライアント
 
 
 ## Install
-(NetInstaller対応予定)
 
-NetInstallerからxml-http-requestとxl-jsonをインストールし、
-[xl-oauth](http://github.com/youz/xl-oauth)のoauth.l と xyttr.l を`*load-path*`に配置します。
+- NetInstallerをよりインストール
+  下記のURLのパッケージリストを登録し、パッケージ`*scrap*`よりインストールして下さい。
+  http://youz.github.com/xyzzy/package.l
 
-.xyzzyには
+- 手動インストール
+  xyttr.l を`*load-path*`に配置してください。
+
+※依存ライブラリ[xml-http-request](http://miyamuko.s56.xrea.com/xyzzy/xml-http-request/intro.htm), [json](http://miyamuko.s56.xrea.com/xyzzy/json/intro.htm), [xl-oauth](http://github.com/youz/xl-oauth)を別途インストールしておく必要があります。
+
+### .xyzzy設定例
 
     (require 'xyttr)
     (setq xyttr:*default-user* "your-name"
           xyttr:*auto-reload* 600)
-
-の様に追記しておきます。
 
 
 ## Usage
@@ -30,6 +33,7 @@ NetInstallerからxml-http-requestとxl-jsonをインストールし、
 
 + タイムライン表示
     - M -- @関連
+    - M-M -- DirectMessages
     - U -- ユーザータイムライン
     - L -- リスト
     - F -- お気に入り
@@ -44,10 +48,11 @@ NetInstallerからxml-http-requestとxl-jsonをインストールし、
 + ポスト
     - u -- tweet
     - @ -- 言及
-    - ` -- 返信
+    - ` (shift + @) -- 返信
     - rt -- 公式RT
     - rr -- 引用して返信
     - ru -- 引用してツイート (非公式RT)
+    - dm -- DM
     - f -- ☆ on / off
     - D -- 削除
 
@@ -65,10 +70,9 @@ NetInstallerからxml-http-requestとxl-jsonをインストールし、
 
 
 ## Todo
-* Netinstaller対応
-* マルチアカウント
+* 非同期リクエストに切り替え
 * list購読
-* 非同期リクエスト
+* マルチアカウント
 
 ## Author
 Yousuke Ushiki (<citrus.yubeshi@gmail.com>)
