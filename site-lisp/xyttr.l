@@ -33,11 +33,11 @@
   "list of filtering functions for timeline")
 
 ;;; const
-(defconstant *api-url*    "http://api.twitter.com")
+(defconstant *api-url*    "https://api.twitter.com")
 (defconstant *search-url* "http://search.twitter.com")
 (defconstant *X-Twitter-Client* "xyttr")
 (defconstant *X-Twitter-Client-URL* "http://github.com/youz/xyttr")
-(defconstant *X-Twitter-Client-Version* "0.5.0")
+(defconstant *X-Twitter-Client-Version* "1.0.1")
 
 ;;; auth
 (defvar *consumer-key*    "9tO9vX1QgwWPqoPNnhcMw")
