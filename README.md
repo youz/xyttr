@@ -6,11 +6,14 @@ xyzzy上で動作するミニマムなtwitterクライアント
 ## Install
 
 - NetInstallerをよりインストール
-  下記のURLのパッケージリストを登録し、パッケージ`*scrap*`よりインストールして下さい。
-  http://youz.github.com/xyzzy/package.l
+ 
+    下記のURLのパッケージリストを登録し、パッケージ`*scrap*`よりインストールして下さい。
+
+    http://youz.github.com/xyzzy/package.l
 
 - 手動インストール
-  xyttr.l を`*load-path*`に配置してください。
+
+    xyttr.l を`*load-path*`に配置してください。
 
 ※依存ライブラリ[xml-http-request](http://miyamuko.s56.xrea.com/xyzzy/xml-http-request/intro.htm), [json](http://miyamuko.s56.xrea.com/xyzzy/json/intro.htm), [xl-oauth](http://github.com/youz/xl-oauth)を別途インストールしておく必要があります。
 
