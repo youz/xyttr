@@ -967,13 +967,13 @@
 
 (defun show-irt-status ()
   (interactive)
-  (w/entry (id in_reply_to_status_id)
+  (w/entry (id . #0=(in_reply_to_status_id retweeted_status.in_reply_to_status_id))
     (whenlet irtid
 	(case (modeconf-mode buffer-modeconf)
 	  ((:xyttr-search :xyttr-search-global)
 	   (whenlet st (api-show-status :id id)
-	     (json-value st in_reply_to_status_id)))
-	  (t in_reply_to_status_id))
+	     (w/json #0# st (or . #0#))))
+	  (t (or . #0#)))
       (whenlet irtst (api-show-status :id irtid)
 	(w/json (user.screen_name text) irtst
 	  (popup-string (format nil "@~A: ~A" user.screen_name text)
