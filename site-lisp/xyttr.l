@@ -521,28 +521,25 @@
       (let ((wc (max 20 (1- (window-columns)))))
 	(with-output-to-buffer (buf point)
 	  (dolist (st statuses)
-	    (w/json (user.name user.screen_name created_at text source favorited
-			       retweeted_status retweet_count) st
-	      (let ((start #1=(buffer-stream-point *standard-output*)))
-		(format t " ~V@{-~}~%@~A ~@[/ ~A~] [~A] ~:[ ~;š~]"
-			(1- wc) user.screen_name user.name
-			(format-date-string "%y/%m/%d (%a) %H:%M:%S"
-					    (parse-date created_at))
-			favorited)
-		(set-text-attribute (1- #1#) #1# (cons :fav favorited) :foreground 11)
-		(format t "~A~%~A~%"
-			(if source
-			    (concat " from "
-				    (if (string-match ">\\([^<]+\\)<" source)
-					(match-string 1)
-				      source))
-			  "")
-			(if retweeted_status
-			    (w/json (user.screen_name text) retweeted_status
-			      (format nil "RT~@[(~A)~] @~A: ~A"
-				      retweet_count user.screen_name (entity2char text)))
-			  (entity2char text)))
-		(set-text-attribute (1+ start) (+ start wc) (cons :entry st) :foreground 14))))
+	    (let ((start #1=(buffer-stream-point *standard-output*)))
+	      (format t " ~V@{-~}~%" (1- wc) t)
+	      (w/json (user.name user.screen_name created_at text source favorited
+				 retweeted_status retweet_count) st
+		(let ((date (format-date-string "%y/%m/%d (%a) %H:%M:%S" (parse-date created_at)))
+		      (from (if (and source (string-match ">\\([^<]+\\)<" source))
+				(match-string 1)
+			      source))
+		      (text (if retweeted_status
+				(w/json (user.screen_name text) retweeted_status
+				  (format nil "RT~@[(~A)~] @~A: ~A"
+					  retweet_count user.screen_name (entity2char text)))
+			      (entity2char text))))
+		  (format t "@~A ~@[/ ~A~] [~A] ~:[ ~;š~]"
+			  user.screen_name user.name date favorited)
+		  (set-text-attribute (1- #1#) #1# (cons :fav favorited) :foreground 11)
+		  (format t "~@[ from ~A~]~%~A~%" from text)))
+	      (set-text-attribute (1+ start) (+ start wc) (cons :entry st)
+				  :foreground 14)))
 	  (when display-count
 	    (format t "~V@{=~}~%~D new tweets" wc (length statuses)))
 	  )))
