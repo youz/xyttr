@@ -106,21 +106,23 @@
 
 
 ;;; buffer local data
-(defstruct modeconf
-  "xyttr mode config (buffer-local)"
-  user        ; username (= screen name)
-  mode        ; timeline mode name (:home-timeline, :user-timeline, etc)
-  apifunc     ; #'api-home-timeline, #'api-user-timeline, etc
-  params      ; parameters passed to apifunc
-  auto-reload ; auto-reload interval (number of seconds, or nil)
-  (unread 0)  ; unread counter
-  )
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defstruct timeline
+    "timeline settings and data"
+    user        ; username (= screen name)
+    toekn       ; reserved
+    mode        ; timeline mode name (:home-timeline, :user-timeline, etc)
+    apifunc     ; #'api-home-timeline, #'api-user-timeline, etc
+    params      ; parameters passed to apifunc
+    auto-reload ; auto-reload interval (number of seconds, or nil)
+    (unread 0)  ; unread counter
+    ;; timeline data
+    alldata     ; list of all tweets
+    last-id     ; status id of the newest tweet
+    first-id    ; status id of the oldest tweet
+    (page 0)    ; reserved
+    ))
 
-(defstruct timeline
-  "timeline data (buffer-local)"
-  alldata last-id first-id page)
-
-(defvar-local buffer-modeconf nil)
 (defvar-local buffer-timeline nil)
 
 
@@ -621,26 +623,25 @@
   (interactive)
   (when (eq (buffer-local-value buf 'ed:buffer-mode) 'xyttr-timeline-mode)
     (let* ((name  (substitute-string (buffer-name buf) " ([0-9]+)$" ""))
-	   (conf (buffer-local-value buf 'buffer-modeconf))
 	   (tl (buffer-local-value buf 'buffer-timeline))
-	   (res (apply (modeconf-apifunc conf)
+	   (res (apply (timeline-apifunc tl)
 		       :since_id #0=(timeline-last-id tl)
-		       (modeconf-params conf))))
+		       (timeline-params tl))))
       (when res
 	(setf #0# (json-value (car res) id))
 	(unless #1=(timeline-first-id tl)
 	  (setf #1# (json-value (car (last res)) id)))
 	(whenlet statuses (filter *timeline-filter* res)
-	  (incf #2=(modeconf-unread conf) (length statuses))
-	  (timeline-draw-statuses buf statuses)
-	  (setf #3=(timeline-alldata tl) (append statuses #3#))))
+	  (incf #2=(timeline-unread tl) (length statuses))
+	  (setf #3=(timeline-alldata tl) (append statuses #3#))
+	  (timeline-draw-statuses buf statuses)))
       (rename-buffer (format nil "~A~[~:; (~D)~]" name #2# #2#) buf)
       (refresh-screen)
       t)))
 
 (defun set-auto-reload (buf interval)
-  (whenlet rc (buffer-local-value buf 'buffer-modeconf)
-    (whenlet ar #1=(modeconf-auto-reload rc)
+  (whenlet tl (buffer-local-value buf 'buffer-timeline)
+    (whenlet ar #1=(timeline-auto-reload tl)
       (stop-timer ar))
     (setf #1# `(lambda ()
 		 (timeline-reload ,buf)))
@@ -648,15 +649,15 @@
     t))
 
 (defun disable-auto-reload (buf)
-  (whenlet rc (buffer-local-value buf 'buffer-modeconf)
-    (whenlet ar #1=(modeconf-auto-reload buffer-modeconf)
+  (whenlet tl (buffer-local-value buf 'buffer-timeline)
+    (whenlet ar #1=(timeline-auto-reload tl)
       (stop-timer ar)
       (setf #1# nil))))
 
 (defun toggle-auto-reload ()
   (interactive)
   (message "auto reload: ~:[off~;on (~A sec)~]"
-	   (if (modeconf-auto-reload buffer-modeconf)
+	   (if (timeline-auto-reload buffer-timeline)
 	       (disable-auto-reload (selected-buffer))
 	     (when *auto-reload*
 	       (set-auto-reload (selected-buffer) *auto-reload*)))
@@ -668,8 +669,8 @@
 		   #1=(timeline-first-id buffer-timeline))
     (let* ((buf (selected-buffer))
 	   (name  (substitute-string (buffer-name buf) " ([0-9]+)$" ""))
-	   (res (apply (modeconf-apifunc buffer-modeconf)
-		       :max_id (1- id) (modeconf-params buffer-modeconf))))
+	   (res (apply (timeline-apifunc buffer-timeline)
+		       :max_id (1- id) (timeline-params buffer-timeline))))
       (whenlet statuses (filter *timeline-filter* res)
 	(timeline-draw-statuses (selected-buffer) statuses
 				:point (point-max)
@@ -678,7 +679,6 @@
 	(setf #1# (json-value (car (last statuses)) id))
 	(nconc (timeline-alldata buffer-timeline) statuses)
 	t))))
-
 
 
 ;;; major mode
@@ -699,7 +699,7 @@
 
 (defun timeline-on-activate ()
   (when (eq buffer-mode 'xyttr-timeline-mode)
-    (setf (modeconf-unread buffer-modeconf) 0)))
+    (setf (timeline-unread buffer-timeline) 0)))
 
 (defun xyttr-timeline-mode ()
   (interactive)
@@ -716,22 +716,17 @@
 	(append regexp-keyword-list *regexp-keyword-list*))
   (set-buffer-fold-type-window)
   (use-keymap *xyttr-timeline-keymap*)
-
-  (setq buffer-modeconf (make-modeconf)
-	buffer-timeline (make-timeline))
-  
-  (add-hook 'ed:*post-command-hook*
-	    'timeline-on-activate)
-  
+  (setq buffer-timeline (make-timeline))
+  (add-hook 'ed:*post-command-hook* 'timeline-on-activate)
   ; delete timer
   (add-hook 'ed:*before-delete-buffer-hook*
 	    '(lambda (buf)
 	      (when (eq buffer-mode 'xytt-timeline-mode)
 		(disable-auto-reload buf))
 	      t))
-
   (when (file-exist-p (merge-pathnames ".xyttr/config.l" (si:system-root)))
     (load-plugin "config")))
+
 
 ;;; user command
 (defmacro define-tl-command (name params &key interactive buffer-name api-func api-params hook auto-reload)
@@ -745,13 +740,12 @@
        (set-buffer buf)
        (unless (eq buffer-mode 'xyttr-timeline-mode)
 	 (xyttr-timeline-mode)
-	 (setf (modeconf-mode buffer-modeconf) ,(kwd name)
-	       (modeconf-apifunc buffer-modeconf) ,api-func
-	       (modeconf-params buffer-modeconf) (list ,@api-params))
+	 (setf (timeline-mode buffer-timeline) ,(kwd name)
+	       (timeline-apifunc buffer-timeline) ,api-func
+	       (timeline-params buffer-timeline) (list ,@api-params))
 	 (whenlet interval (or ,auto-reload *auto-reload*)
 	   (set-auto-reload buf interval)))
        (timeline-reload)
-       (setf (modeconf-unread buffer-modeconf) 0)
        ,(when hook `(run-hooks ,hook))
        t)))
 
@@ -836,13 +830,12 @@
     (set-buffer buf)
     (unless (eq buffer-mode 'xyttr-timeline-mode)
       (xyttr-timeline-mode)
-      (setf (modeconf-mode buffer-modeconf) :xyttr-list
-	    (modeconf-apifunc buffer-modeconf) #'api-list-statuses
-	    (modeconf-params buffer-modeconf) (list :user user :list_id listid))
+      (setf (timeline-mode buffer-timeline) :xyttr-list
+	    (timeline-apifunc buffer-timeline) #'api-list-statuses
+	    (timeline-params buffer-timeline) (list :user user :list_id listid))
       (whenlet *auto-reload*
 	  (set-auto-reload buf *auto-reload*)))
     (timeline-reload)
-    (setf (modeconf-unread buffer-modeconf) 0)
     t))
 
 
@@ -966,7 +959,7 @@
   (interactive)
   (w/entry (id . #0=(in_reply_to_status_id retweeted_status.in_reply_to_status_id))
     (whenlet irtid
-	(case (modeconf-mode buffer-modeconf)
+	(case (timeline-mode buffer-timeline)
 	  ((:xyttr-search :xyttr-search-global)
 	   (whenlet st (api-show-status :id id)
 	     (w/json #0# st (or . #0#))))
