@@ -116,6 +116,7 @@
     params      ; parameters passed to apifunc
     auto-reload ; auto-reload interval (number of seconds, or nil)
     (unread 0)  ; unread counter
+    request     ; xhr-cancel-ticket
     ;; timeline data
     alldata     ; list of all tweets
     last-id     ; status id of the newest tweet
@@ -345,8 +346,8 @@
 	  ',method ,apiurl ,path #1#
 	  :onsuccess ,(if (null key) 'onsuccess
 			`(lambda (#2=#:json)
-			   (funcall ,key
-				    (funcall onsuccess #2#))))
+			   (funcall onsuccess
+				    (funcall ,key #2#))))
 	  :onfailure onfailure
 	  :oncomplete oncomplete
 	  :handler handler))
@@ -484,12 +485,30 @@
   :method post
   :path   (format nil "/1/direct_messages/destroy/~D.json" id))
 
-(defun api-direct-messages-all (&key since_id max_id count page)
+(defun api-direct-messages-all-async (&key since_id max_id count page
+					   onsuccess onfailure)
   (let* ((params (list :since_id since_id :max_id max_id :count count :page page))
 	 (received (apply #'api-direct-messages params))
 	 (sent (apply #'api-direct-messages-sent params)))
     (sort (append received sent) #'>
 	  :key #'(lambda (e) (json-value e id)))))
+
+(defun api-direct-messages-all-async (&key since_id max_id count page
+					   onsuccess onfailure)
+  (let* ((params (list :since_id since_id :max_id max_id :count count :page page)))
+    (apply #'api-direct-messages-async
+	   :onfailure onfailure
+	   :onsuccess
+	   (lambda (received)
+	     (apply #'api-direct-messages-sent-async
+		    :onfailure onfailure
+		    :onsuccess
+		    (lambda (sent)
+		      (funcall onsuccess
+			       (sort (append received sent) #'>
+				     :key #'(lambda (e) (json-value e id)))))
+		    params))
+	   params)))
 
 
 ;;; search api
@@ -623,20 +642,29 @@
   (interactive)
   (when (eq (buffer-local-value buf 'ed:buffer-mode) 'xyttr-timeline-mode)
     (let* ((name  (substitute-string (buffer-name buf) " ([0-9]+)$" ""))
-	   (tl (buffer-local-value buf 'buffer-timeline))
-	   (res (apply (timeline-apifunc tl)
-		       :since_id #0=(timeline-last-id tl)
-		       (timeline-params tl))))
-      (when res
-	(setf #0# (json-value (car res) id))
-	(unless #1=(timeline-first-id tl)
-	  (setf #1# (json-value (car (last res)) id)))
-	(whenlet statuses (filter *timeline-filter* res)
-	  (incf #2=(timeline-unread tl) (length statuses))
-	  (setf #3=(timeline-alldata tl) (append statuses #3#))
-	  (timeline-draw-statuses buf statuses)))
-      (rename-buffer (format nil "~A~[~:; (~D)~]" name #2# #2#) buf)
-      (refresh-screen)
+	   (tl (buffer-local-value buf 'buffer-timeline)))
+      (whenlet req #0=(timeline-request tl)
+	(xhr:xhr-abort req))
+      (setf #0#
+	    (apply (timeline-apifunc tl)
+		   :since_id #1=(timeline-last-id tl)
+		   :onsuccess
+		   (lambda (res)
+		     (when res
+		       (setf #1# (json-value (car res) id))
+		       (unless #2=(timeline-first-id tl)
+			 (setf #2# (json-value (car (last res)) id)))
+		       (whenlet statuses (filter *timeline-filter* res)
+			 (incf #3=(timeline-unread tl) (length statuses))
+			 (setf #4=(timeline-alldata tl) (append statuses #4#))
+			 (timeline-draw-statuses buf statuses)))
+		     (setf #0# nil)
+		     (rename-buffer (format nil "~A~[~:; (~D)~]" name #3# #3#) buf)
+		     (refresh-screen))
+		   :onfailure
+		   (lambda (res status header)
+		     (message "HTTP ~D: reload failed" status))
+		   (timeline-params tl)))
       t)))
 
 (defun set-auto-reload (buf interval)
@@ -665,20 +693,33 @@
 
 (defun timeline-append-page ()
   (interactive)
-  (whenlet id (and (eq buffer-mode 'xyttr-timeline-mode)
-		   #1=(timeline-first-id buffer-timeline))
-    (let* ((buf (selected-buffer))
-	   (name  (substitute-string (buffer-name buf) " ([0-9]+)$" ""))
-	   (res (apply (timeline-apifunc buffer-timeline)
-		       :max_id (1- id) (timeline-params buffer-timeline))))
-      (whenlet statuses (filter *timeline-filter* res)
-	(timeline-draw-statuses (selected-buffer) statuses
-				:point (point-max)
-				:display-count nil)
-	(recenter)
-	(setf #1# (json-value (car (last statuses)) id))
-	(nconc (timeline-alldata buffer-timeline) statuses)
-	t))))
+  (let ((buf (selected-buffer))
+	(tl buffer-timeline))
+    (whenlet id (and (eq buffer-mode 'xyttr-timeline-mode)
+		     #1=(timeline-first-id tl))
+      (whenlet req #0=(timeline-request tl)
+	(xhr:xhr-abort req))
+      (setf #0#
+	    (apply (timeline-apifunc tl)
+		   :max_id (1- id)
+		   :onsuccess
+		   (lambda (res)
+		     (whenlet statuses (filter *timeline-filter* res)
+		       (save-excursion
+			 (set-buffer buf)
+			 (timeline-draw-statuses buf statuses
+						 :point (point-max)
+						 :display-count nil)
+			 (recenter)
+			 (refresh-screen))
+		       (setf #1# (json-value (car (last statuses)) id)
+			     #0# nil)
+		       (nconc (timeline-alldata tl) statuses)))
+		   :onfailure
+		   (lambda (res status header)
+		     (message "HTTP ~D: reload failed" status))
+		   (timeline-params tl))))
+    t))
 
 
 ;;; major mode
@@ -751,56 +792,56 @@
 
 (define-tl-command xyttr ()
   :buffer-name "*tw: home*"
-  :api-func #'api-home-timeline
+  :api-func #'api-home-timeline-async
   :api-params (:count 50))
 
 (define-tl-command xyttr-user (user)
   :interactive "sUser: @"
   :buffer-name (format nil "*tw: ~:[@~A~;mine~]*" (string= "" user) user)
-  :api-func #'api-user-timeline
+  :api-func #'api-user-timeline-async
   :api-params (:screen_name user :count 50 :include_rts t))
 
 (define-tl-command xyttr-mentions ()
   :buffer-name "*tw: mentions*"
-  :api-func #'api-mentions
+  :api-func #'api-mentions-async
   :api-params (:count 50 :include_rts t))
 
 (define-tl-command xyttr-retweeted-by-me ()
   :buffer-name "*tw: RTs by me*"
-  :api-func #'api-retweeted-by-me
+  :api-func #'api-retweeted-by-me-async
   :api-params (:count 20))
 
 (define-tl-command xyttr-retweeted-to-me ()
   :buffer-name "*tw: RTs to me*"
-  :api-func #'api-retweeted-to-me
+  :api-func #'api-retweeted-to-me-async
   :api-params (:count 20))
 
 (define-tl-command xyttr-retweeted-of-me ()
   :buffer-name "*tw: RT of me*"
-  :api-func #'api-retweets-of-me
+  :api-func #'api-retweets-of-me-async
   :api-params (:count 20))
 
 (define-tl-command xyttr-favorites ()
   :buffer-name "*tw: favs*"
-  :api-func #'api-favorites
+  :api-func #'api-favorites-async
   :api-params (:page 1)
   :auto-reload nil)
 
 (define-tl-command xyttr-messages ()
   :buffer-name "*tw: messages*"
-  :api-func #'api-direct-messages-all
+  :api-func #'api-direct-messages-all-async
   :api-params (:count 20))
 
 (define-tl-command xyttr-search (q)
   :interactive "sSearch Twitter: "
   :buffer-name (format nil "*tw? ~A*" q)
-  :api-func #'api-search
+  :api-func #'api-search-async
   :api-params (:q q :rpp 50 :lang *search-lang*))
 
 (define-tl-command xyttr-search-global (q)
   :interactive "sSearch Twitter (global):"
   :buffer-name (format nil "*tw? ~A*" q)
-  :api-func #'api-search
+  :api-func #'api-search-async
   :api-params (:q q :rpp 50))
 
 
@@ -831,7 +872,7 @@
     (unless (eq buffer-mode 'xyttr-timeline-mode)
       (xyttr-timeline-mode)
       (setf (timeline-mode buffer-timeline) :xyttr-list
-	    (timeline-apifunc buffer-timeline) #'api-list-statuses
+	    (timeline-apifunc buffer-timeline) #'api-list-statuses-async
 	    (timeline-params buffer-timeline) (list :user user :list_id listid))
       (whenlet *auto-reload*
 	  (set-auto-reload buf *auto-reload*)))
