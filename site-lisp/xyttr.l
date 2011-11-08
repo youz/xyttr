@@ -663,6 +663,7 @@
 		     (refresh-screen))
 		   :onfailure
 		   (lambda (res status header)
+		     (setf #0# nil)
 		     (message "HTTP ~D: reload failed" status))
 		   (timeline-params tl)))
       t)))
