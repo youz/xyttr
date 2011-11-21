@@ -773,12 +773,23 @@
     (load-plugin "config")))
 
 
+(defun timeline-buffers ()
+  (delete-if-not #'(lambda (buf) (eq (buffer-local-value buf 'ed:buffer-mode)
+				     'xyttr-timeline-mode))
+		 (buffer-list)))
+
+(defun get-timeline-buffer-create (name)
+  (or (find-if #'(lambda (buf) (string-match (concat "^" (regexp-quote name)) (buffer-name buf)))
+	       (timeline-buffers))
+      (create-new-buffer name)))
+
+
 ;;; user command
 (defmacro define-tl-command (name params &key interactive buffer-name api-func api-params hook auto-reload)
   `(defun ,(intern (symbol-name name) "user") ,params
      (interactive ,interactive)
      (unless (xyttr-init-user) (quit))
-     (let ((buf (get-buffer-create ,buffer-name)))
+     (let ((buf (get-timeline-buffer-create ,buffer-name)))
        (when *use-frame*
 	 (select-pseudo-frame (or (find-pseudo-frame *frame-name*)
 				  (new-pseudo-frame *frame-name*))))
@@ -868,7 +879,7 @@
 	 (l (assoc lname *list-subscriptions* :test #'string=))
 	 (user (cadr l))
 	 (listid (caddr l))
-	 (buf (get-buffer-create (format nil "*tw: ~A" lname))))
+	 (buf (get-timeline-buffer-create (format nil "*tw: ~A" lname))))
     (when *use-frame*
       (select-pseudo-frame (or (find-pseudo-frame *frame-name*)
 			       (new-pseudo-frame *frame-name*))))
