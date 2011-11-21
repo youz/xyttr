@@ -154,10 +154,13 @@
 	    :initial-value obj)))
 
 (defmacro w/json (keys obj &body body)
-  (w/uniq (gobj)
-    `(let* ((,gobj ,obj)
-	    ,@(mapcar #'(lambda (k) `(,k (json-value ,gobj ,k))) keys))
-       ,@body)))
+  (w/uniq gobj
+    (flet ((mkbind (k)
+	     (if (consp k)
+		 `(,(cadr k) (json-value ,gobj ,(car k)))
+	       `(,k (json-value ,gobj ,k)))))
+      `(let* ((,gobj ,obj) ,@(mapcar #'mkbind keys))
+	 ,@body))))
 
 (defun filter (filter-list xs)
   (flet ((filter1 (x)
