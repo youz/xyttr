@@ -185,8 +185,9 @@
 		(/ (parse-integer (subseq #1# 3)) 60))))
     (+ ut (* (- 9 tz) 3600))))
 
-(defun expand-short-url (url)
-  (while (string-match "http://\\([^/]+\\)/\\(.+\\)$" url)
+(defun expand-short-url (url &optional depth)
+  (while (and (string-match "http://\\([^/]+\\)/\\(.+\\)$" url)
+	      (or (null depth) (>= (decf depth) 0)))
     (let ((host (match-string 1))
 	  (path (match-string 2)))
       (with-open-stream (cn (connect host 80))
