@@ -16,6 +16,10 @@
 	  *open-url-by*
 	  *search-lang*
 	  *quote-format*
+	  *username-style*
+	  *hashtag-style*
+	  *favorite-star-style*
+	  *separater-style*
 	  *use-frame*
 	  *frame-name*
 	  *timeline-filter*))
@@ -89,6 +93,13 @@
   (define-key m #\p 'show-irt-status)
   )
 
+;;; styles
+(defvar *username-style* '(:keyword 0))
+(defvar *hashtag-style* '(:keyword 1))
+(defvar *favorite-star-style*  '(:foreground 3))
+(defvar *separater-style* '(:foreground 14))
+
+
 ;;; link elements
 (defvar *url-regexp* "https?://[-0-9A-Za-z_.!~*';/?:@&=+$,%#|]+")
 (defvar *hashtag-regexp* "\\(^\\|[ 　,.､｡，．、。]\\)\\([#＃]\\([_a-zA-Z0-9ｦ-ﾟ０-ヶヽ-々ー亜-黑]+\\)\\)")
@@ -99,10 +110,10 @@
 	*hashtag-regexp*
 	*user-regexp*))
 
-(defvar *regexp-keyword-list*
+(defun make-regexp-keyword-list ()
   (compile-regexp-keyword-list
-   `((,*hashtag-regexp* t (:keyword 1) nil 2)
-     (,*user-regexp* t (:keyword 0)))))
+   `((,*hashtag-regexp* t ,*hashtag-style* nil 2)
+     (,*user-regexp* t ,*username-style*))))
 
 
 ;;; buffer local data
@@ -561,10 +572,10 @@
 			      (entity2char text))))
 		  (format t "@~A ~@[/ ~A~] [~A] ~:[ ~;★~]"
 			  user.screen_name user.name date favorited)
-		  (set-text-attribute (1- #1#) #1# (cons :fav favorited) :foreground 11)
+		  (apply #'set-text-attribute (1- #1#) #1# (cons :fav favorited) *favorite-star-style*)
 		  (format t "~@[ from ~A~]~%~A~%" from text)))
-	      (set-text-attribute (1+ start) (+ start wc) (cons :entry st)
-				  :foreground 14)))
+	      (apply #'set-text-attribute (1+ start) (+ start wc)
+		     (cons :entry st) *separater-style*)))
 	  (when display-count
 	    (format t "~V@{=~}~%~D new tweets" wc (length statuses)))
 	  )))
@@ -758,8 +769,8 @@
 	auto-save nil)
   (unless (local-variable-p 'regexp-keyword-list)
     (make-local-variable 'regexp-keyword-list))
-  (setf regexp-keyword-list
-	(append regexp-keyword-list *regexp-keyword-list*))
+  (setq regexp-keyword-list
+	(append regexp-keyword-list (make-regexp-keyword-list)))
   (set-buffer-fold-type-window)
   (use-keymap *xyttr-timeline-keymap*)
   (setq buffer-timeline (make-timeline))
