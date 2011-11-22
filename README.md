@@ -35,6 +35,7 @@ xyzzy上で動作するミニマムなtwitterクライアント
 ## Keymap
 
 + タイムライン表示
+    - H -- ホーム
     - M -- @関連
     - M-M -- DirectMessages
     - U -- ユーザータイムライン
@@ -73,9 +74,8 @@ xyzzy上で動作するミニマムなtwitterクライアント
 
 
 ## Todo
-* 非同期リクエストに切り替え
 * list購読
-* マルチアカウント
+* マルチアカウント対応
 
 ## Author
 Yousuke Ushiki (<citrus.yubeshi@gmail.com>)

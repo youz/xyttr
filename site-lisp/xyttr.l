@@ -54,6 +54,7 @@
 
 (let ((m *xyttr-timeline-keymap*))
   ;; open timeline
+  (define-key m #\H 'user::xyttr)
   (define-key m #\U 'user::xyttr-user)
   (define-key m #\M 'user::xyttr-mentions)
   (define-key m #\M-M 'user::xyttr-messages)
