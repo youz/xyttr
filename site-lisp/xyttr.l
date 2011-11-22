@@ -689,7 +689,8 @@
     (whenlet ar #1=(timeline-auto-reload tl)
       (stop-timer ar))
     (setf #1# `(lambda ()
-		 (timeline-reload ,buf)))
+		 (unless (minibuffer-window-p (selected-window))
+		   (timeline-reload ,buf))))
     (start-timer (max 30 interval) #1#)
     t))
 
