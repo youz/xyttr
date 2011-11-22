@@ -122,7 +122,7 @@
   (defstruct timeline
     "timeline settings and data"
     user        ; username (= screen name)
-    toekn       ; reserved
+    tokens      ; reserved
     mode        ; timeline mode name (:home-timeline, :user-timeline, etc)
     apifunc     ; #'api-home-timeline, #'api-user-timeline, etc
     params      ; parameters passed to apifunc
