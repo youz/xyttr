@@ -92,6 +92,7 @@
   (define-key m #\Q 'close-timeline-buffer)
   (define-key m #\C 'copy-status-url)
   (define-key m #\p 'show-irt-status)
+  (define-key m #\e 'expand-focused-url)
   )
 
 ;;; styles
@@ -636,21 +637,30 @@
 	     (equal "#" (buffer-substring (1+ (point)) (+ (point) 2))))
     (forward-char)))
 
+(defun expand-focused-url ()
+  (interactive)
+  (multiple-value-bind (url beg end) (focused-url)
+    (whenlet url (and url (expand-short-url url))
+      (w/buffer-modifying ()
+	(delete-region beg end)
+	(with-output-to-buffer ((selected-buffer) beg)
+	  (format t "~A" url)))
+      url)))
+
 (defun open-link ()
   (interactive)
   (let ((user (focused-user))
-	(tag (focused-hashtag))
-	(url (focused-url)))
+	(tag (focused-hashtag)))
     (cond (user (when (y-or-n-p "open *tw: @~A* :" user)
 		  (user::xyttr-user user)))
 	  (tag (when (y-or-n-p "open *tw? #~A* :" tag)
 		 (user::xyttr-search-global (concat "#" tag))))
-	  (url
-	   (setq url (expand-short-url url))
-	   (when (y-or-n-p "open ~A :" url)
-	     (if *open-url-by*
-		 (funcall *open-url-by* url)
-	       (shell-execute url t)))))))
+	  (t
+	   (whenlet url (expand-focused-url)
+	     (when (y-or-n-p "open ~A :" url)
+	       (if *open-url-by*
+		   (funcall *open-url-by* url)
+		 (shell-execute url t))))))))
 
 
 ;;; reload
