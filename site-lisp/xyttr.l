@@ -39,9 +39,11 @@
 ;;; const
 (defconstant *api-url*    "https://api.twitter.com")
 (defconstant *search-url* "http://search.twitter.com")
-(defconstant *X-Twitter-Client* "xyttr")
-(defconstant *X-Twitter-Client-URL* "http://github.com/youz/xyttr")
-(defconstant *X-Twitter-Client-Version* "1.0.1")
+(defconstant *client-info*
+  '(:X-Twitter-Client         "xyttr"
+    :X-Twitter-Client-URL     "http://github.com/youz/xyttr"
+    :X-Twitter-Client-Version "1.1.0"))
+
 
 ;;; auth
 (defvar *consumer-key*    "9tO9vX1QgwWPqoPNnhcMw")
