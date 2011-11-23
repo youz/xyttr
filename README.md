@@ -15,7 +15,10 @@ xyzzy上で動作するミニマムなtwitterクライアント
 
     xyttr.l を`*load-path*`に配置してください。
 
-※依存ライブラリ[xml-http-request](http://miyamuko.s56.xrea.com/xyzzy/xml-http-request/intro.htm), [json](http://miyamuko.s56.xrea.com/xyzzy/json/intro.htm), [xl-oauth](http://github.com/youz/xl-oauth)を別途インストールしておく必要があります。
+※依存ライブラリ
+[xml-http-request](http://miyamuko.s56.xrea.com/xyzzy/xml-http-request/intro.htm) (v1.3.0以上),
+[json](http://miyamuko.s56.xrea.com/xyzzy/json/intro.htm),
+[xl-oauth](http://github.com/youz/xl-oauth)を別途インストールしておく必要があります。
 
 ### .xyzzy設定例
 
