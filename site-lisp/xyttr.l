@@ -753,7 +753,9 @@
 
 
 ;;; major mode
-(defun xyttr-init-user ()
+(defun xyttr-init ()
+  (when (file-exist-p (merge-pathnames ".xyttr/config.l" (si:system-root)))
+    (load-plugin "config"))
   (if (and *token* *token-secret*) t
     (if *default-user*
 	(or (load-token *default-user*)
@@ -794,9 +796,7 @@
 	    '(lambda (buf)
 	      (when (eq buffer-mode 'xytt-timeline-mode)
 		(disable-auto-reload buf))
-	      t))
-  (when (file-exist-p (merge-pathnames ".xyttr/config.l" (si:system-root)))
-    (load-plugin "config")))
+	      t)))
 
 
 (defun timeline-buffers ()
@@ -814,7 +814,7 @@
 (defmacro define-tl-command (name params &key interactive buffer-name api-func api-params hook auto-reload)
   `(defun ,(intern (symbol-name name) "user") ,params
      (interactive ,interactive)
-     (unless (xyttr-init-user) (quit))
+     (unless (xyttr-init) (quit))
      (let ((buf (get-timeline-buffer-create ,buffer-name)))
        (when *use-frame*
 	 (select-pseudo-frame (or (find-pseudo-frame *frame-name*)
@@ -897,7 +897,7 @@
 
 (defun user::xyttr-list ()
   (interactive)
-  (unless (xyttr-init-user) (quit))
+  (unless (xyttr-init) (quit))
   (unless *list-subscriptions*
     (setq *list-subscriptions* (subscriptions)))
   (let* ((lname (completing-read "List: " (mapcar #'car *list-subscriptions*)
