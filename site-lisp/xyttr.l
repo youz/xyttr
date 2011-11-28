@@ -723,15 +723,18 @@
 
 (defun timeline-append-page ()
   (interactive)
-  (let ((buf (selected-buffer))
-	(tl buffer-timeline))
-    (whenlet id (and (eq buffer-mode 'xyttr-timeline-mode)
-		     #1=(timeline-first-id tl))
+  (when (eq buffer-mode 'xyttr-timeline-mode)
+    (let* ((buf (selected-buffer))
+	   (tl buffer-timeline)
+	   (params (timeline-params tl)))
       (whenlet req #0=(timeline-request tl)
 	(xhr:xhr-abort req))
+      (if #2=(getf params :page)
+	(incf #2#)
+	(whenlet id #1=(timeline-first-id tl)
+	  (setq params `(:max_id ,(1- id) ,@params))))
       (setf #0#
 	    (apply (timeline-apifunc tl)
-		   :max_id (1- id)
 		   :onsuccess
 		   (lambda (res)
 		     (whenlet statuses (filter *timeline-filter* res)
@@ -748,7 +751,7 @@
 		   :onfailure
 		   (lambda (res status header)
 		     (message "HTTP ~D: reload failed" status))
-		   (timeline-params tl))))
+		   params)))
     t))
 
 
