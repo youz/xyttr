@@ -8,7 +8,6 @@
 (defpackage :xyttr
   (:use :lisp :editor))
 
-
 (in-package "xyttr")
 (export '(*xyttr-timeline-keymap*
 	  *default-user*
@@ -162,11 +161,12 @@
     `(do ((,var ,test ,test))
 	 ((not ,var))
        ,@body))
+  )
 
-  (defmacro json-value (obj key)
-    (reduce #'(lambda (o k) `(cdr (assoc ,k ,o :test #'string=)))
-	    (split-string (symbol-name key) #\.)
-	    :initial-value obj)))
+(defmacro json-value (obj key)
+  (reduce #'(lambda (o k) `(cdr (assoc ,k ,o :test #'string=)))
+	  (split-string (symbol-name key) #\.)
+	  :initial-value obj))
 
 (defmacro w/json (keys obj &body body)
   (w/uniq gobj
