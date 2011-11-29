@@ -210,11 +210,13 @@
 	(let* ((res (read-line cn nil))
 	       (status (and (string-match "^HTTP/[0-9.]+ \\([0-9]+\\) .+$" res)
 			    (match-string 1))))
-	  (unless (find status '("301" "302") :test #'string=)
+	  (unless (string-match "^30." status)
 	    (return))
-	  (do ((buf #0=(read-line cn nil) #0#))
-	      ((string-match "^Location: \\(.+\\)$" buf)
-	       (setq url (match-string 1))))))))
+	  (whilet l (read-line cn t)
+	    (when (or (string-match "^Location: \\(.+\\)$" l) (string= l ""))
+	      (return)))
+	  (whenlet m (match-string 1)
+	    (setq url (if (char= (char m 0) #\/) (concat "http://" host m) m)))))))
     url)
 
 (defmacro w/buffer-modifying ((&optional buf) &body body)
@@ -1078,6 +1080,7 @@
 ;;; for edit
 (setf (get 'w/uniq #1='ed:lisp-indent-hook) 1
       (get 'whenlet #1#) 2
+      (get 'whilet #1#) 2
       (get 'w/json #1#) 2
       (get 'w/entry #1#) 1
       (get 'w/buffer-modifying #1#) 1
