@@ -641,10 +641,10 @@
 	     (equal "#" (buffer-substring (1+ (point)) (+ (point) 2))))
     (forward-char)))
 
-(defun expand-focused-url ()
-  (interactive)
+(defun expand-focused-url (&optional d)
+  (interactive "p")
   (multiple-value-bind (url beg end) (focused-url)
-    (whenlet url (and url (expand-short-url url))
+    (whenlet url (and url (expand-short-url url d))
       (w/buffer-modifying ()
 	(delete-region beg end)
 	(with-output-to-buffer ((selected-buffer) beg)
