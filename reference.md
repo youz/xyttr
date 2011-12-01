@@ -295,7 +295,7 @@ xyttr::timeline構造体で定義され、ローカル変数`xyttr::buffer-timel
 -  params      -- リロード/次ページ取得時にapifuncへ渡す基本パラメータ
 -  auto-reload -- 自動リロードの間隔 (秒数 or nil)
 -  unread      -- 未読件数
--  request     -- リロード/次ページ取得時のリクエスト中にキャンセルチケットが
+-  request     -- リロード/次ページ取得時のリクエスト中にキャンセルチケットが格納されます
 -  alldata     -- 全tweetデータのリスト
 -  last-id     -- 最新tweetのstatus id (リロード時に使用)
 -  first-id    -- 最古tweetのstatus id (次ページ取得時に使用)
