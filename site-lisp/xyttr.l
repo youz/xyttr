@@ -1045,10 +1045,9 @@
 
 (defun copy-status-url ()
   (interactive)
-  (w/entry (id user.screen_name)
-    (let ((url (status-url)))
-      (copy-to-clipboard url)
-      (message "Copied: ~A" url))))
+  (let ((url (status-url)))
+    (copy-to-clipboard url)
+    (message "Copied: ~A" url)))
 
 (defun show-irt-status ()
   (interactive)
