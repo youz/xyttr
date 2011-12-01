@@ -429,20 +429,21 @@ xyttrをカスタマイズ/拡張する際に便利な関数/マクロです。
     * path -- リソースURLのパス部分 (省略不可)
     * key -- 関数を指定すると、リクエスト結果(jsonリスト)をその関数に通してから返します。
 
-        ;; xyttr.l より引用
-        (define-api update
-          (status in_reply_to_status_id lat long place_id display_coordinates)
-          :method post
-          :path "/1/statuses/update.json")
-        
-        (define-api destroy (id)
-          :method post
-          :path (format nil "/1/statuses/destroy/~D.json" id))
+----
+    ;; xyttr.l より抜粋
+    (define-api update
+      (status in_reply_to_status_id lat long place_id display_coordinates)
+      :method post
+      :path "/1/statuses/update.json")
+    
+    (define-api destroy (id)
+      :method post
+      :path (format nil "/1/statuses/destroy/~D.json" id))
 
-        (define-api search
-          (q lang rpp page max_id since_id since until
-           geocode show_user result_type)
-          :apiurl *search-url*
-          :path "/search.json"
-          :key #'search-result-to-statuses)
+    (define-api search
+      (q lang rpp page max_id since_id since until
+       geocode show_user result_type)
+      :apiurl *search-url*
+      :path "/search.json"
+      :key #'search-result-to-statuses)
 
