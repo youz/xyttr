@@ -548,8 +548,8 @@
     (mapcar #'convert (json-value res results))))
 
 (define-api search
-  (q lang rpp page max_id since_id since #+:nil until
-   geocode show_ser result_type)
+  (q lang rpp page max_id since_id since until
+   geocode show_user result_type)
   :apiurl *search-url*
   :path "/search.json"
   :key #'search-result-to-statuses)
