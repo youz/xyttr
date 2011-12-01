@@ -761,19 +761,20 @@
 (defun xyttr-init ()
   (when (file-exist-p (merge-pathnames ".xyttr/config.l" (si:system-root)))
     (load-plugin "config"))
-  (if (and *token* *token-secret*) t
-    (if *default-user*
-	(or (load-token *default-user*)
-	    #1=(get-access-token))
-      (let ((users (mapcar #'(lambda (f) (and (string-match "token_\\(.+\\)$" f)
-					      (match-string 1)))
-			   (directory "~/.xyttr/" :wild "token_*"))))
-	(if users
-	    (let ((user (ed:completing-read "username: " users)))
-	      (if (find user users :test #'string=)
-		  (load-token user)
-		#1#))
-	  #1#)))))
+  (when
+      (if (and *token* *token-secret*) t
+	(if *default-user*
+	    (or (load-token *default-user*) #1=(get-access-token))
+	  (let ((users (mapcar #'(lambda (f) (subseq f 6))
+			       (directory "~/.xyttr/" :wild "token_*"))))
+	    (if users
+		(let ((user (ed:completing-read "username: " users)))
+		  (if (find user users :test #'string=)
+		      (load-token user)
+		    #1#))
+	      #1#))))
+    (get-subscriptions-async)
+    t))
 
 (defun timeline-on-activate ()
   (when (eq buffer-mode 'xyttr-timeline-mode)
@@ -899,6 +900,17 @@
 	      (w/json (full_name id_str user.screen_name) l
 		(list full_name user.screen_name id_str)))
 	  (json-value (api-list-subscriptions :user user) lists)))
+
+(defun get-subscriptions-async (&optional (user *default-user*))
+  (api-list-subscriptions-async
+   :user user
+   :onsuccess
+   (lambda (res)
+     (setq *list-subscriptions*
+	   (mapcar #'(lambda (l)
+		       (w/json (full_name id_str user.screen_name) l
+			 (list full_name user.screen_name id_str)))
+		   (json-value res lists))))))
 
 (defun user::xyttr-list ()
   (interactive)
