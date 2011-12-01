@@ -26,6 +26,10 @@ xyzzy上で動作するミニマムなtwitterクライアント
     (setq xyttr:*default-user* "your-name"
           xyttr:*auto-reload* 600)
 
+また、フォルダ `~/.xyttr` に `config.l` というファイルを用意しておくと
+xyttr初回起動時にロードします。`*defautl-user*`や`*auto-reload*`の指定は
+.xyzzyではなくconfig.lに記述してもOKです。
+
 
 ## Usage
 

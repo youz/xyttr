@@ -41,7 +41,7 @@
 (defconstant *client-info*
   '(:X-Twitter-Client         "xyttr"
     :X-Twitter-Client-URL     "http://github.com/youz/xyttr"
-    :X-Twitter-Client-Version "1.1.0"))
+    :X-Twitter-Client-Version "1.1.1"))
 
 
 ;;; auth
