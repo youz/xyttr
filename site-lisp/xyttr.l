@@ -540,16 +540,20 @@
 	   (format nil "~{~A~^ ~}"
 		   (mapcar #'(lambda (n) (nth n elms)) '(0 2 1 4 5 3)))))
        (convert (e)
-	 (w/json (id from_user created_at text) e
+	 (w/json (id from_user created_at text
+		     in_reply_to_status_id profile_image_url) e
 	   `(("id" . ,id)
-	     ("user" ("screen_name" . ,from_user))
+	     ("user"
+	      ("screen_name" . ,from_user)
+	      ("profile_image_url" . ,profile_image_url))
 	     ("created_at" . ,(fixdate created_at))
+	     ("in_reply_to_status_id" . ,in_reply_to_status_id)
 	     ("text" . ,text)))))
     (mapcar #'convert (json-value res results))))
 
 (define-api search
   (q lang rpp page max_id since_id since until
-   geocode show_user result_type)
+   geocode show_user result_type include_entities)
   :apiurl *search-url*
   :path "/search.json"
   :key #'search-result-to-statuses)
@@ -883,13 +887,14 @@
   :interactive "sSearch Twitter: "
   :buffer-name (format nil "*tw? ~A*" q)
   :api-func #'api-search-async
-  :api-params (:q q :rpp 50 :lang *search-lang*))
+  :api-params (:q q :rpp 50 :lang *search-lang*
+	       :include_entities "true"))
 
 (define-tl-command xyttr-search-global (q)
   :interactive "sSearch Twitter (global):"
   :buffer-name (format nil "*tw? ~A*" q)
   :api-func #'api-search-async
-  :api-params (:q q :rpp 50))
+  :api-params (:q q :rpp 50 :include_entities "true"))
 
 
 ;;; list timeline
@@ -1064,12 +1069,7 @@
 (defun show-irt-status ()
   (interactive)
   (w/entry (id . #0=(in_reply_to_status_id retweeted_status.in_reply_to_status_id))
-    (whenlet irtid
-	(case (timeline-mode buffer-timeline)
-	  ((:xyttr-search :xyttr-search-global)
-	   (whenlet st (api-show-status :id id)
-	     (w/json #0# st (or . #0#))))
-	  (t (or . #0#)))
+    (whenlet irtid (or . #0#)
       (whenlet irtst (api-show-status :id irtid)
 	(w/json (user.screen_name text) irtst
 	  (popup-string (format nil "@~A: ~A" user.screen_name text)
