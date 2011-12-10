@@ -14,14 +14,15 @@
 
 (defun njslyr ()
   (interactive)
-  (select-pseudo-frame
-   (or (find-pseudo-frame *frame-name*)
-       (new-pseudo-frame *frame-name*)))
-  (when (= (count-windows) 1)
-    (split-window-vertically))
-  (user::xyttr-user "NJSLYR")
-  (other-window)
-  (user::xyttr-search "#NJSLYR -RT"))
+  (let ((*frame-name* "njslyr"))
+    (select-pseudo-frame
+     (or (find-pseudo-frame *frame-name*)
+      (new-pseudo-frame *frame-name*)))
+    (when (= (count-windows) 1)
+      (split-window-vertically))
+    (user::xyttr-user "NJSLYR")
+    (other-window)
+    (user::xyttr-search "#NJSLYR -RT")))
 
 (let ((m *xyttr-timeline-keymap*))
   (define-key m '(#\c #\c) 'expand&copy-url)
