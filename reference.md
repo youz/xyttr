@@ -379,9 +379,8 @@ xyttrをカスタマイズ/拡張する際に便利な関数/マクロです。
     タイムラインバッファー上で、現在のカーソル位置に該当するツイートのデータを
     w/jsonの形式で受け取り、bodyを評価します。
 
-    - カーソル下のツイートをクリップボードにコピーする例
-
         (defun copy-tweet ()
+          "カーソル下のツイートをクリップボードにコピーする"
           (interactive)
           (w/entry (user.screen_name text)
             (let ((s (format nil "@~A: ~A" user.screen_name text)))
