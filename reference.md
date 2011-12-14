@@ -429,7 +429,7 @@ xyttrをカスタマイズ/拡張する際に便利な関数/マクロです。
     * key -- 関数を指定すると、リクエスト結果(jsonリスト)をその関数に通してから返します。
 
 ----
-    ;; xyttr.l より抜粋
+    ;; 使用例 (xyttr.lより抜粋)
     (define-api update
       (status in_reply_to_status_id lat long place_id display_coordinates)
       :method post
@@ -446,3 +446,39 @@ xyttrをカスタマイズ/拡張する際に便利な関数/マクロです。
       :path "/search.json"
       :key #'search-result-to-statuses)
 
+- *macro* define-tl-command (name params &key interactive buffer-name api-func api-params auto-reload hook)
+
+    タイムラインコマンドを定義します。
+    
+    * name -- コマンド関数名
+    * params -- コマンドパラメータ
+    * interactive -- パラメータの受け取り方を指定するinteractive-string (paramsがnilの場合は不要)
+    * buffer-name -- タイムラインバッファ名
+    * api-func -- ツイートデータを取得するためのtimeline系api関数
+    * api-params -- api-funcに渡すパラメータ
+    * auto-reload -- 自動リロード間隔(秒) 省略時は`xyttr:*auto-reload*`の値
+    * hook -- タイムライン用バッファ生成後に実行するhook関数(シンボル)
+
+    api-funcは非同期版の関数を指定します。
+    api関数を自作する場合はキーワード引数onsuccessとonfailureで
+    コールバックを受け取るように定義してください。
+
+----
+    ;; 使用例 (xyttr.lより抜粋)
+    (define-tl-command xyttr ()
+      :buffer-name "*tw: home*"
+      :api-func #'api-home-timeline-async
+      :api-params (:count 50))
+    
+    (define-tl-command xyttr-user (user)
+      :interactive "sUser: @"
+      :buffer-name (format nil "*tw: ~:[@~A~;mine~]*" (string= "" user) user)
+      :api-func #'api-user-timeline-async
+      :api-params (:screen_name user :count 50 :include_rts t))
+    
+    (define-tl-command xyttr-search (q)
+      :interactive "sSearch Twitter: "
+      :buffer-name (format nil "*tw? ~A*" q)
+      :api-func #'api-search-async
+      :api-params (:q q :rpp 50 :lang *search-lang*
+               :include_entities "true"))
