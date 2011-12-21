@@ -35,6 +35,8 @@
 (defvar *timeline-filter* nil
   "list of filtering functions for timeline")
 
+(defvar *timeline-reload-hook* nil)
+
 ;;; const
 (defconstant *api-url*    "https://api.twitter.com")
 (defconstant *search-url* "http://search.twitter.com")
@@ -694,6 +696,9 @@
 			 (timeline-draw-statuses buf statuses)))
 		     (setf #0# nil)
 		     (rename-buffer (format nil "~A~[~:; (~D)~]" name #3# #3#) buf)
+		     (save-excursion
+		       (set-buffer buf)
+		       (run-hook-with-args '*timeline-reload-hook* res))
 		     (refresh-screen))
 		   :onfailure
 		   (lambda (res status header)
