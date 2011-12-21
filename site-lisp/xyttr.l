@@ -917,17 +917,15 @@
 			 (list full_name user.screen_name id_str)))
 		   (json-value res lists))))))
 
-(defun user::xyttr-list ()
-  (interactive)
-  (unless (xyttr-init) (quit))
-  (unless *list-subscriptions*
-    (setq *list-subscriptions* (subscriptions)))
-  (let* ((lname (completing-read "List: " (mapcar #'car *list-subscriptions*)
-				 :must-match t))
-	 (l (assoc lname *list-subscriptions* :test #'string=))
+(defun user::xyttr-list (list-name)
+  (interactive
+      (let ((lists (or *list-subscriptions*
+		       (if (xyttr-init) (subscriptions) (quit)))))
+	(list (completing-read "List: " (mapcar #'car lists) :must-match t))))
+  (let* ((l (assoc list-name *list-subscriptions* :test #'string=))
 	 (user (cadr l))
 	 (listid (caddr l))
-	 (buf (get-timeline-buffer-create (format nil "*tw: ~A" lname))))
+	 (buf (get-timeline-buffer-create (format nil "*tw: ~A" list-name))))
     (when *use-frame*
       (select-pseudo-frame (or (find-pseudo-frame *frame-name*)
 			       (new-pseudo-frame *frame-name*))))
