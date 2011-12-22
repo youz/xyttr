@@ -21,7 +21,8 @@
 	  *separater-style*
 	  *use-frame*
 	  *frame-name*
-	  *timeline-filter*))
+	  *timeline-filter*
+	  *timeline-reload-hook*))
 
 (defvar *default-user* nil)
 (defvar *auto-reload* nil
