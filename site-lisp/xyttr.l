@@ -808,8 +808,9 @@
   (setq buffer-timeline (make-timeline))
   (add-hook 'ed:*post-command-hook* 'timeline-on-activate)
   ; delete timer
-  (add-hook 'ed:*before-delete-buffer-hook*
-	    '(lambda (buf)
+  (make-local-variable #0='ed:*before-delete-buffer-hook*)
+  (add-hook #0#
+	    (lambda (buf)
 	      (when (eq buffer-mode 'xytt-timeline-mode)
 		(disable-auto-reload buf))
 	      t)))
