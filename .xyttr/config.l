@@ -11,6 +11,7 @@
 (load-plugin "urlutil")
 (load-plugin "showgist")
 (load-plugin "growltweet")
+(load-plugin "postbuf")
 
 (defun njslyr ()
   (interactive)
