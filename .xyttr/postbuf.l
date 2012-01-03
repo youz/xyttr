@@ -13,22 +13,20 @@
 (define-key *post-buffer-keymap* '(#\C-x #\k) 'close-post-buffer)
 
 (defun post-buffer-count-chars ()
-  (let ((c (length (buffer-substring (point-min) (point-max))))
-	(m (mark t)))
-    (save-excursion
-      (save-restriction
-	(widen)
-	(beginning-of-buffer)
-	(replace-buffer "•¶š”:[0-9]+" (format nil "•¶š”:~D" c)
-			:regexp t :once t)))
-    (when m (set-mark m))))
+  (let ((c (length (buffer-substring (point-min) (point-max)))))
+    (setq mode-line-format
+	  (format nil "~A (~A) c‚è ~D •¶š"
+		  (getf post-buffer-args :name)
+		  mode-name (- 140 c)))))
 
 (defun post-buffer-mode ()
   (interactive)
   (kill-all-local-variables)
   (setq buffer-mode 'post-buffer-mode
 	mode-name "xyttr-post-buffer"
-	need-not-save t)
+	need-not-save t
+	kept-undo-information 1000)
+  (make-local-variable 'mode-line-format)
   (use-keymap *post-buffer-keymap*)
   (make-local-variable '#0=regexp-keyword-list)
   (setq #0# (append #0# (make-regexp-keyword-list)
@@ -55,12 +53,13 @@
 	  (list :name name :params params :reload reload :ref ref
 		:api api :status-field status-field))
     (with-output-to-buffer (buf)
-      (format t "“Še:C-c C-c   •Â‚¶‚é:C-x k  •¶š”:0~%~@[~A~%~]" ref)
+      (format t "“Še:C-c C-c   •Â‚¶‚é:C-x k~%~@[~A~%~]" ref)
       (format t "~V@{-~}~%" (1- w) t))
     (narrow-to-region #0=(point-max) #0#)
     (when default
       (if cursor-top (save-excursion #1=(insert default)) #1#))
     (make-local-variable #2='ed:*before-delete-buffer-hook*)
+    (post-buffer-count-chars)
     (flet ((restore-wc (buf)
 	     (ignore-errors (set-window-configuration wc)) t))
       (add-hook #2# #'restore-wc))))
