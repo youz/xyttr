@@ -941,10 +941,10 @@
 
 (defun user::xyttr-list (list-name)
   (interactive
-      (let ((lists (or (append *list-index* *list-subscriptions*)
+      (let ((lists (or #0=(append *list-index* *list-subscriptions*)
 		       (if (xyttr-init) (all-lists) (quit)))))
 	(list (completing-read "List: " (mapcar #'car lists) :must-match t))))
-  (let* ((l (assoc list-name *list-subscriptions* :test #'string=))
+  (let* ((l (assoc list-name #0# :test #'string=))
 	 (user (cadr l))
 	 (listid (caddr l))
 	 (buf (get-timeline-buffer-create (format nil "*tw: ~A" list-name))))
