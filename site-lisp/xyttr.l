@@ -1044,8 +1044,10 @@
 
 (defun destroy-status ()
   (interactive)
-  (w/entry (id)
-    (api-destroy :id id)))
+  (w/entry (id sender recipient)
+    (if (and sender recipient)
+	(api-direct-messages-destroy-async :id id)
+      (api-destroy-async :id id))))
 
 
 (defun toggle-favorite ()
