@@ -783,6 +783,7 @@
 		      (load-token user)
 		    #1#))
 	      #1#))))
+    (get-lists-async)
     (get-subscriptions-async)
     t))
 
@@ -905,13 +906,27 @@
 
 
 ;;; list timeline
+(defvar *list-index* nil)
 (defvar *list-subscriptions* nil)
 
-(defun subscriptions (&optional (user *default-user*))
+(defun all-lists (&optional (user *default-user*))
   (mapcar #'(lambda (l)
 	      (w/json (full_name id_str user.screen_name) l
 		(list full_name user.screen_name id_str)))
-	  (json-value (api-list-subscriptions :user user) lists)))
+	  (append
+	   (json-value (api-list-index :user user) lists)
+	   (json-value (api-list-subscriptions :user user) lists))))
+
+(defun get-lists-async (&optional (user *default-user*))
+  (api-list-index-async
+   :user user
+   :onsuccess
+   (lambda (res)
+     (setq *list-index*
+	   (mapcar #'(lambda (l)
+		       (w/json (full_name id_str user.screen_name) l
+			 (list full_name user.screen_name id_str)))
+		   (json-value res lists))))))
 
 (defun get-subscriptions-async (&optional (user *default-user*))
   (api-list-subscriptions-async
@@ -926,8 +941,8 @@
 
 (defun user::xyttr-list (list-name)
   (interactive
-      (let ((lists (or *list-subscriptions*
-		       (if (xyttr-init) (subscriptions) (quit)))))
+      (let ((lists (or (append *list-index* *list-subscriptions*)
+		       (if (xyttr-init) (all-lists) (quit)))))
 	(list (completing-read "List: " (mapcar #'car lists) :must-match t))))
   (let* ((l (assoc list-name *list-subscriptions* :test #'string=))
 	 (user (cadr l))
