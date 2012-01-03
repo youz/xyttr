@@ -64,7 +64,7 @@ xyttr初回起動時にロードします。`*defautl-user*`や`*auto-reload*`�
     - rr -- 引用して返信
     - ru -- 引用してツイート (非公式RT)
     - dm -- DM
-    - f -- ☆ on / off
+    - f -- お気に入り ☆ on / off
     - D -- 削除
 
 + カーソル

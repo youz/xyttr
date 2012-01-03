@@ -23,16 +23,14 @@ xyttrのコマンドとxyttrパッケージ内の関数/マクロのリファレ
 
 - xyttr-list
 
-    minibufferのプロンプトで指定したリスト(購読中の物に限る)を表示します。
-    リストは`@username/listname`の形式で指定します。
-    complete+が導入してあれば、@までタイプすれば購読中の全リストが
-    候補として表示されます。
+    minibufferのプロンプトで指定したリストを表示します。
+    リストは自作の物と購読中の物から`@username/listname`の形式で指定します。
+    (手入力は煩わしいので[http://white.s151.xrea.com/wiki/index.php?script%2Fcomplete%2B](complete+)の導入を推奨します)
     他のタイムラインバッファからは`L`で呼び出せます。
 
 - xyttr-favorites
 
     お気に入りを表示します。
-    (v1.1.0現在次ページの表示が正しく取得できません)
     他のタイムラインバッファからは`F`で呼び出せます。
 
 - xyttr-user
