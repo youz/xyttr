@@ -493,15 +493,15 @@
 		  ("screen_name" . ,(format nil "~A -> @~A" sender.screen_name recipient.screen_name)))))))
     (mapcar #'convert res)))
 
-(define-api direct-messages (since_id max_id count page)
+(define-api direct-messages (since_id max_id count page include_entities)
   :path   "/1/direct_messages.json"
   :key #'messages-to-statuses)
 
-(define-api direct-messages-sent (since_id max_id count page)
+(define-api direct-messages-sent (since_id max_id count page include_entities)
   :path   "/1/direct_messages/sent.json"
   :key #'messages-to-statuses)
 
-(define-api direct-messages-new (user text)
+(define-api direct-messages-new (user text include_entities)
   :method post
   :path   "/1/direct_messages/new.json")
 
@@ -509,17 +509,19 @@
   :method post
   :path   (format nil "/1/direct_messages/destroy/~D.json" id))
 
-(defun api-direct-messages-all-async (&key since_id max_id count page
+(defun api-direct-messages-all-async (&key since_id max_id count page include_entities
 					   onsuccess onfailure)
-  (let* ((params (list :since_id since_id :max_id max_id :count count :page page))
+  (let* ((params (list :since_id since_id :max_id max_id :count count :page page
+		       :include_entities include_entities))
 	 (received (apply #'api-direct-messages params))
 	 (sent (apply #'api-direct-messages-sent params)))
     (sort (append received sent) #'>
 	  :key #'(lambda (e) (json-value e id)))))
 
-(defun api-direct-messages-all-async (&key since_id max_id count page
+(defun api-direct-messages-all-async (&key since_id max_id count page include_entities
 					   onsuccess onfailure)
-  (let* ((params (list :since_id since_id :max_id max_id :count count :page page)))
+  (let ((params (list :since_id since_id :max_id max_id :count count :page page
+		      :include_entities include_entities)))
     (apply #'api-direct-messages-async
 	   :onfailure onfailure
 	   :onsuccess
@@ -856,44 +858,45 @@
 (define-tl-command xyttr ()
   :buffer-name "*tw: home*"
   :api-func #'api-home-timeline-async
-  :api-params (:count 50))
+  :api-params (:count 50 :include_entities "true"))
 
 (define-tl-command xyttr-user (user)
   :interactive "sUser: @"
   :buffer-name (format nil "*tw: ~:[@~A~;mine~]*" (string= "" user) user)
   :api-func #'api-user-timeline-async
-  :api-params (:screen_name user :count 50 :include_rts t))
+  :api-params (:screen_name user :count 50 :include_rts t
+	       :include_entities "true"))
 
 (define-tl-command xyttr-mentions ()
   :buffer-name "*tw: mentions*"
   :api-func #'api-mentions-async
-  :api-params (:count 50 :include_rts t))
+  :api-params (:count 50 :include_rts t :include_entities "true"))
 
 (define-tl-command xyttr-retweeted-by-me ()
   :buffer-name "*tw: RTs by me*"
   :api-func #'api-retweeted-by-me-async
-  :api-params (:count 20))
+  :api-params (:count 20 :include_entities "true"))
 
 (define-tl-command xyttr-retweeted-to-me ()
   :buffer-name "*tw: RTs to me*"
   :api-func #'api-retweeted-to-me-async
-  :api-params (:count 20))
+  :api-params (:count 20 :include_entities "true"))
 
 (define-tl-command xyttr-retweeted-of-me ()
   :buffer-name "*tw: RT of me*"
   :api-func #'api-retweets-of-me-async
-  :api-params (:count 20))
+  :api-params (:count 20 :include_entities "true"))
 
 (define-tl-command xyttr-favorites ()
   :buffer-name "*tw: favs*"
   :api-func #'api-favorites-async
-  :api-params (:page 1)
+  :api-params (:page 1 :include_entities "true")
   :auto-reload nil)
 
 (define-tl-command xyttr-messages ()
   :buffer-name "*tw: messages*"
   :api-func #'api-direct-messages-all-async
-  :api-params (:count 20))
+  :api-params (:count 20 :include_entities "true"))
 
 (define-tl-command xyttr-search (q)
   :interactive "sSearch Twitter: "
