@@ -543,13 +543,17 @@
 	   (format nil "~{~A~^ ~}"
 		   (mapcar #'(lambda (n) (nth n elms)) '(0 2 1 4 5 3)))))
        (convert (e)
-	 (w/json (id from_user created_at text
-		     in_reply_to_status_id profile_image_url) e
+	 (w/json (id from_user from_user_id from_user_name profile_image_url
+		     created_at text source in_reply_to_status_id entities) e
 	   `(("id" . ,id)
+	     ("entities" . ,entities)
 	     ("user"
+	      ("name" . ,from_user_name)
 	      ("screen_name" . ,from_user)
+	      ("id" . ,from_user_id)
 	      ("profile_image_url" . ,profile_image_url))
 	     ("created_at" . ,(fixdate created_at))
+	     ("source" . ,(entity2char source))
 	     ("in_reply_to_status_id" . ,in_reply_to_status_id)
 	     ("text" . ,text)))))
     (mapcar #'convert (json-value res results))))
