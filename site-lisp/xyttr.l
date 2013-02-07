@@ -335,7 +335,7 @@
 		   (lambda #0#
 		     (error 'request-error
 			    :host host :path path :method method
-			    :status status :response response)))))
+			    :status status :response res)))))
     (if (eq method 'get)
 	(xhr:xhr-get-async url :query params .
 			   #1=(:headers `(:Authorization ,auth)
