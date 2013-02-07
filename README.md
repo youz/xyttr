@@ -59,7 +59,7 @@ xyttr初回起動時にロードします。`*defautl-user*`や`*auto-reload*`�
 + ポスト
     - u -- tweet
     - @ -- 言及
-    - ` (shift + @) -- 返信
+    - ` (バッククォート) -- 返信
     - rt -- 公式RT
     - rr -- 引用して返信
     - ru -- 引用してツイート (非公式RT)
