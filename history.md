@@ -1,5 +1,13 @@
 # xyttr 変更履歴
 
+## 2012/01/03  v1.2.0
+
+* Twitter API ver.1.1 に対応 (#6)
+* ver.1.1 で`public_timeline`, `retweeted_by_me`, `retweeted_to_me`の各APIが削除されたため
+  それぞれ対応するコマンドを削除
+* DMバッファでsend-messageコマンドを実行すると送り先が正しく設定されない問題を修正
+* 投稿バッファプラグイン (~/.xyttr/postbuf.l) を API ver.1.1 に対応
+
 ## 2012/01/03  v1.1.3
 
 * xyttr-listコマンドのリスト選択肢に自作リストを追加
