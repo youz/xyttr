@@ -1,6 +1,6 @@
 # xyttr 変更履歴
 
-## 2012/01/03  v1.2.0
+## 2013/03/05  v1.2.0
 
 * Twitter API ver.1.1 に対応 (#6)
 * ver.1.1 で`public_timeline`, `retweeted_by_me`, `retweeted_to_me`の各APIが削除されたため
