@@ -5,7 +5,7 @@
 
 (defpackage :xyttr.post-buffer
   (:use :lisp :ed :xyttr)
-  (:import-from :xyttr "w/json" "w/entry"))
+  (:import-from :xyttr "w/json" "w/entry" "whenlet"))
 
 (in-package :xyttr.post-buffer)
 
