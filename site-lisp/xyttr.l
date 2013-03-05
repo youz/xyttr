@@ -39,8 +39,8 @@
 (defvar *timeline-reload-hook* nil)
 
 ;;; const
-(defconstant *api-url*    "https://api.twitter.com")
-(defconstant *search-url* "http://search.twitter.com")
+(defconstant *api-baseurl*    "https://api.twitter.com/1.1")
+
 (defconstant *client-info*
   '(:X-Twitter-Client         "xyttr"
     :X-Twitter-Client-URL     "http://github.com/youz/xyttr"
@@ -262,9 +262,9 @@
   (multiple-value-bind (tokens res)
       (oauth:get-access-token
        *consumer-key* *consumer-secret*
-       (concat *api-url* "/oauth/request_token")
-       (concat *api-url* "/oauth/authorize")
-       (concat *api-url* "/oauth/access_token"))
+       (concat *api-baseurl* "/oauth/request_token")
+       (concat *api-baseurl* "/oauth/authorize")
+       (concat *api-baseurl* "/oauth/access_token"))
     (when tokens
       (setq *token* (getf tokens :token)
 	    *token-secret* (getf tokens :token-secret))
@@ -283,24 +283,22 @@
 
 ;;; api
 (define-condition request-error (network-error)
-  (host path method status response)
+  (path method status response)
   (:report
    (lambda (c s)
      (format s "xyttr request failed~%~
-                host: ~A~%~
-                path: ~A~%~
+                url: ~A~A~%~
                 method: ~A~%~
                 status: ~A~%~
                 response: ~A"
-	     (request-error-host c)
-	     (request-error-path c)
+	     *api-baseurl* (request-error-path c)
 	     (request-error-method c)
 	     (request-error-status c)
 	     (request-error-response c)
 	     ))))
 
-(defun api-request (method host path params)
-  (let* ((url (concat host path))
+(defun api-request (method path params)
+  (let* ((url (concat *api-baseurl* path))
 	 (cred (list :consumer-key *consumer-key*
 		     :consumer-secret *consumer-secret*
 		     :token *token*
@@ -316,12 +314,12 @@
       (if (= status 200)
 	  (json:json-decode res)
 	(error 'request-error
-	       :host host :path path :method method
+	       :path path :method method
 	       :status status :response res)))))
 
-(defun api-request-async (method host path params
+(defun api-request-async (method path params
 			  &key raw onsuccess onfailure oncomplete handler)
-  (let* ((url (concat host path))
+  (let* ((url (concat *api-baseurl* path))
 	 (cred (list :consumer-key *consumer-key*
 		     :consumer-secret *consumer-secret*
 		     :token *token*
@@ -334,7 +332,7 @@
 	 (fail (or onfailure
 		   (lambda #0#
 		     (error 'request-error
-			    :host host :path path :method method
+			    :path path :method method
 			    :status status :response res)))))
     (if (eq method 'get)
 	(xhr:xhr-get-async url :query params .
@@ -348,8 +346,7 @@
       (xhr:xhr-request-async method url params . #1#))))
 
 (defmacro define-api (name params
-		      &key (auth t) (method 'get) (apiurl '*api-url*)
-			   path key)
+		      &key (auth t) (method 'get) path key)
   (unless path (error "define-api: missing 'path'"))
   (let ((sync (symb "api-" name))
 	(async (symb "api-" name "-async")))
@@ -357,7 +354,7 @@
        (defun ,sync (&key ,@params)
 	 ,(if (null key)
 	      `#0=(api-request
-		  ',method ,apiurl ,path
+		  ',method ,path
 		   #1=(append
 		       ,@(mapcar #'(lambda (p)
 				     `(if ,p ,(list 'list (kwd p) p)))
@@ -367,7 +364,7 @@
        (defun ,async (&key ,@params
 			   onsuccess onfailure oncomplete handler)
 	 (api-request-async
-	  ',method ,apiurl ,path #1#
+	  ',method ,path #1#
 	  :onsuccess ,(if (null key) 'onsuccess
 			`(lambda (#2=#:json)
 			   (funcall onsuccess
@@ -380,106 +377,89 @@
 
 
 ;;; timeline api
-(define-api public-timeline
-  (trim_user include_entities)
-  :auth nil
-  :path "/1/statuses/public_timeline.json")
-
 (define-api home-timeline
-  (since_id max_id count page trim_user include_entities)
-  :path "/1/statuses/home_timeline.json")
+  (count since_id max_id trim_user exclude_replies contributor_details include_rts)
+  :path "/statuses/home_timeline.json")
 
 (define-api user-timeline
-  (user_id screen_name since_id max_id count page
-   trim_user include_rts include_entities)
-  :path "/1/statuses/user_timeline.json")
+  (user_id screen_name count since_id max_id
+   trim_user exclude_replies contributor_details include_rts)
+  :path "/statuses/user_timeline.json")
 
 (define-api mentions
-  (since_id max_id count page trim_user include_rts include_entities)
-  :path "/1/statuses/mentions.json")
-
-(define-api retweeted-by-me
-  (since_id max_id count page trim_user include_entities)
-  :path "/1/statuses/retweeted_by_me.json")
-
-(define-api retweeted-to-me
-  (since_id max_id count page trim_user include_entities)
-  :path "/1/statuses/retweeted_to_me.json")
+  (count since_id max_id trim_user contributor_details include_entities)
+  :path "/statuses/mentions_timeline.json")
 
 (define-api retweets-of-me
-  (since_id max_id count page trim_user include_entities)
-  :path "/1/statuses/retweets_of_me.json")
+  (count since_id max_id trim_user include_entities include_user_entities)
+  :path "/statuses/retweets_of_me.json")
 
 (define-api show-status (id)
-  :path (format nil "/1/statuses/show/~D.json" id))
+  :path "/statuses/show.json")
 
 
 ;;; post api
 (define-api update
-  (status in_reply_to_status_id lat long place_id display_coordinates)
+  (status in_reply_to_status_id lat long place_id display_coordinates trim_user)
   :method post
-  :path "/1/statuses/update.json")
+  :path "/statuses/update.json")
 
-(define-api destroy (id)
+(define-api destroy (id trim_user)
   :method post
-  :path (format nil "/1/statuses/destroy/~D.json" id))
+  :path (format nil "/statuses/destroy/~D.json" id))
 
 
 ;;; retweet api
 (define-api retweet (id)
   :method post
-  :path (format nil "/1/statuses/retweet/~D.json" id))
+  :path (format nil "/statuses/retweet/~D.json" id))
 
 (define-api retweets (id count)
   :method post
-  :path (format nil "/1/statuses/retweets/~D.json" id))
-
-(define-api retweeted_by (id count page)
-  :path (format nil "/1/statuses/~D/retweeted_by.json" id))
-
-(define-api retweeted_by/ids (id count page)
-  :path (format nil "/1/statuses/~D/retweeted_by/ids.json" id))
+  :path (format nil "/statuses/retweets/~D.json" id))
 
 ;;; favorites api
-(define-api favorites (id page)
-  :path (format nil "/1/favorites~:[~;/~:*~A~].json" id))
+(define-api favorites (user_id screen_name count since_id max_id include_entities)
+  :path "/favorites/list.json")
 
-(define-api favorites-create (id)
+(define-api favorites-create (id include_entities)
   :method post
-  :path (format nil "/1/favorites/create/~D.json" id))
+  :path "/favorites/create.json")
 
-(define-api favorites-destroy (id)
+(define-api favorites-destroy (id include_entities)
   :method post
-  :path (format nil "/1/favorites/destroy/~D.json" id))
+  :path "/favorites/destroy/~D.json")
 
 
 ;;; list api
-(define-api list-create (user name mode description)
+(define-api list-index (user_id screen_name)
+  :path "/lists/list.json")
+
+(define-api list-info (list_id slug owner_screen_name owner_id)
+  :path "/lists/show.json")
+
+(define-api list-create (name mode description)
   :method post
-  :path (format nil "/1/~A/lists.json" user))
+  :path "/lists/create.json")
 
-(define-api list-update (user list_id name mode description)
+(define-api list-update (list_id slug name mode description
+			 owner_screen_name owner_id)
   :method post
-  :path (format nil "/1/~A/lists/~A.json" user list_id))
+  :path "/lists/update.json")
 
-(define-api list-index (user cursor)
-  :path (format nil "/1/~A/lists.json" user))
-
-(define-api list-info (user list_id)
-  :path (format nil "/1/~A/lists/~A.json" user list_id))
-
-(define-api list-delete (user list_id)
+(define-api list-delete (list_id slug owner_screen_name owner_id)
   :method post
-  :path (format nil "/1/~A/lists/~A.json" user list_id))
+  :path "/lists/destroy.json")
 
-(define-api list-statuses (user list_id since_id max_id per_page page)
-  :path (format nil "/1/~A/lists/~A/statuses.json" user list_id))
+(define-api list-statuses (list_id slug owner_screen_name owner_id
+			   since_id max_id count include_entities include_rts)
+  :path "/lists/statuses.json")
 
-(define-api list-memberships (user list_id)
-  :path (format nil "/1/~A/lists/memberships.json" user list_id))
+(define-api list-memberships (user_id screen_name cursor filter_to_owned_lists)
+  :path "/lists/memberships.json")
 
-(define-api list-subscriptions (user cursor)
-  :path (format nil "/1/~A/lists/subscriptions.json" user))
+(define-api list-subscriptions (user_id screen_name count cursor)
+  :path "/lists/subscriptions.json")
 
 
 ;;; direct message api
@@ -493,21 +473,25 @@
 		  ("screen_name" . ,(format nil "~A -> @~A" sender.screen_name recipient.screen_name)))))))
     (mapcar #'convert res)))
 
-(define-api direct-messages (since_id max_id count page include_entities)
-  :path   "/1/direct_messages.json"
+(define-api direct-messages (since_id max_id count include_entities skip_status)
+  :path   "/direct_messages.json"
   :key #'messages-to-statuses)
 
 (define-api direct-messages-sent (since_id max_id count page include_entities)
-  :path   "/1/direct_messages/sent.json"
+  :path   "/direct_messages/sent.json"
   :key #'messages-to-statuses)
 
-(define-api direct-messages-new (user text include_entities)
+(define-api direct-messages-show (id)
   :method post
-  :path   "/1/direct_messages/new.json")
+  :path   "/direct_messages/show.json")
 
-(define-api direct-messages-destroy (id)
+(define-api direct-messages-new (user_id screen_name text)
   :method post
-  :path   (format nil "/1/direct_messages/destroy/~D.json" id))
+  :path   "/direct_messages/new.json")
+
+(define-api direct-messages-destroy (id include_entities)
+  :method post
+  :path   "/direct_messages/destroy.json")
 
 (defun api-direct-messages-all-async (&key since_id max_id count page include_entities
 					   onsuccess onfailure)
@@ -538,34 +522,12 @@
 
 
 ;;; search api
-(defun search-result-to-statuses (res)
-  (labels
-      ((fixdate (d)
-	 (let ((elms (split-string (remove #\, d) #\SPC)))
-	   (format nil "~{~A~^ ~}"
-		   (mapcar #'(lambda (n) (nth n elms)) '(0 2 1 4 5 3)))))
-       (convert (e)
-	 (w/json (id from_user from_user_id from_user_name profile_image_url
-		     created_at text source in_reply_to_status_id entities) e
-	   `(("id" . ,id)
-	     ("entities" . ,entities)
-	     ("user"
-	      ("name" . ,from_user_name)
-	      ("screen_name" . ,from_user)
-	      ("id" . ,from_user_id)
-	      ("profile_image_url" . ,profile_image_url))
-	     ("created_at" . ,(fixdate created_at))
-	     ("source" . ,(entity2char source))
-	     ("in_reply_to_status_id" . ,in_reply_to_status_id)
-	     ("text" . ,text)))))
-    (mapcar #'convert (json-value res results))))
 
 (define-api search
-  (q lang rpp page max_id since_id since until
-   geocode show_user result_type include_entities)
-  :apiurl *search-url*
-  :path "/search.json"
-  :key #'search-result-to-statuses)
+  (q lang count page max_id since_id until
+   geocode result_type include_entities)
+  :path "/search/tweets.json"
+  :key #'(lambda (res) (json-value res statuses)))
 
 
 ;;; timeline buffer
@@ -789,8 +751,6 @@
 		      (load-token user)
 		    #1#))
 	      #1#))))
-    (get-lists-async)
-    (get-subscriptions-async)
     t))
 
 (defun timeline-on-activate ()
@@ -872,25 +832,15 @@
   :api-func #'api-mentions-async
   :api-params (:count 50 :include_rts t :include_entities "true"))
 
-(define-tl-command xyttr-retweeted-by-me ()
-  :buffer-name "*tw: RTs by me*"
-  :api-func #'api-retweeted-by-me-async
-  :api-params (:count 20 :include_entities "true"))
-
-(define-tl-command xyttr-retweeted-to-me ()
-  :buffer-name "*tw: RTs to me*"
-  :api-func #'api-retweeted-to-me-async
-  :api-params (:count 20 :include_entities "true"))
-
-(define-tl-command xyttr-retweeted-of-me ()
-  :buffer-name "*tw: RT of me*"
+(define-tl-command xyttr-retweets-of-me ()
+  :buffer-name "*tw: RTs of me*"
   :api-func #'api-retweets-of-me-async
-  :api-params (:count 20 :include_entities "true"))
+  :api-params (:count 50 :include_entities "true"))
 
 (define-tl-command xyttr-favorites ()
   :buffer-name "*tw: favs*"
   :api-func #'api-favorites-async
-  :api-params (:page 1 :include_entities "true")
+  :api-params (:count 20 :include_entities "true")
   :auto-reload nil)
 
 (define-tl-command xyttr-messages ()
@@ -902,57 +852,31 @@
   :interactive "sSearch Twitter: "
   :buffer-name (format nil "*tw? ~A*" q)
   :api-func #'api-search-async
-  :api-params (:q q :rpp 50 :lang *search-lang*
+  :api-params (:q q :count 50 :lang *search-lang*
 	       :include_entities "true"))
 
 (define-tl-command xyttr-search-global (q)
   :interactive "sSearch Twitter (global):"
   :buffer-name (format nil "*tw? ~A*" q)
   :api-func #'api-search-async
-  :api-params (:q q :rpp 50 :include_entities "true"))
+  :api-params (:q q :count 50 :include_entities "true"))
 
 
 ;;; list timeline
 (defvar *list-index* nil)
-(defvar *list-subscriptions* nil)
 
-(defun all-lists (&optional (user *default-user*))
-  (mapcar #'(lambda (l)
-	      (w/json (full_name id_str user.screen_name) l
-		(list full_name user.screen_name id_str)))
-	  (append
-	   (json-value (api-list-index :user user) lists)
-	   (json-value (api-list-subscriptions :user user) lists))))
-
-(defun get-lists-async (&optional (user *default-user*))
-  (api-list-index-async
-   :user user
-   :onsuccess
-   (lambda (res)
-     (setq *list-index*
-	   (mapcar #'(lambda (l)
-		       (w/json (full_name id_str user.screen_name) l
-			 (list full_name user.screen_name id_str)))
-		   (json-value res lists))))))
-
-(defun get-subscriptions-async (&optional (user *default-user*))
-  (api-list-subscriptions-async
-   :user user
-   :onsuccess
-   (lambda (res)
-     (setq *list-subscriptions*
-	   (mapcar #'(lambda (l)
-		       (w/json (full_name id_str user.screen_name) l
-			 (list full_name user.screen_name id_str)))
-		   (json-value res lists))))))
+(defun get-list-index (&optional (user *default-user*))
+  (setq *list-index*
+	(mapcar #'(lambda (l)
+		    (w/json (full_name id_str user.screen_name) l
+		      (list full_name user.screen_name id_str)))
+		(api-list-index :screen_name *default-user*))))
 
 (defun user::xyttr-list (list-name)
   (interactive
-      (let ((lists (or #0=(append *list-index* *list-subscriptions*)
-		       (if (xyttr-init) (all-lists) (quit)))))
+      (let ((lists (or *list-index* (and (xyttr-init) (get-list-index)))))
 	(list (completing-read "List: " (mapcar #'car lists) :must-match t))))
-  (let* ((l (assoc list-name #0# :test #'string=))
-	 (user (cadr l))
+  (let* ((l (assoc list-name *list-index* :test #'string=))
 	 (listid (caddr l))
 	 (buf (get-timeline-buffer-create (format nil "*tw: ~A" list-name))))
     (when *use-frame*
@@ -963,7 +887,7 @@
       (xyttr-timeline-mode)
       (setf (timeline-mode buffer-timeline) :xyttr-list
 	    (timeline-apifunc buffer-timeline) #'api-list-statuses-async
-	    (timeline-params buffer-timeline) (list :user user :list_id listid))
+	    (timeline-params buffer-timeline) (list :list_id listid))
       (whenlet *auto-reload*
 	  (set-auto-reload buf *auto-reload*)))
     (timeline-reload)
@@ -1043,11 +967,12 @@
 
 (defun send-message ()
   (interactive)
-  (w/entry (user.id user.screen_name)
-    (let ((status (read-status (format nil "DM to @~A: " user.screen_name))))
+  (w/entry (user.id user.screen_name sender.id sender.screen_name)
+    (let* ((name (or sender.screen_name user.screen_name))
+	   (id (or sender.id user.id))
+	   (status (read-status (format nil "DM to @~A: " name))))
       (when (string/= "" status)
-	(api-direct-messages-new :user user.screen_name
-				 :text status)))))
+	(api-direct-messages-new :user_id id :text status)))))
 
 
 (defun destroy-status ()
