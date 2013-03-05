@@ -848,14 +848,14 @@
   :interactive "sSearch Twitter: "
   :buffer-name (format nil "*tw? ~A*" q)
   :api-func #'api-search-async
-  :api-params (:q q :rpp 50 :lang *search-lang*
+  :api-params (:q q :count 50 :lang *search-lang*
 	       :include_entities "true"))
 
 (define-tl-command xyttr-search-global (q)
   :interactive "sSearch Twitter (global):"
   :buffer-name (format nil "*tw? ~A*" q)
   :api-func #'api-search-async
-  :api-params (:q q :rpp 50 :include_entities "true"))
+  :api-params (:q q :count 50 :include_entities "true"))
 
 
 ;;; list timeline
