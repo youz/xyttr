@@ -473,7 +473,7 @@
 		  ("screen_name" . ,(format nil "~A -> @~A" sender.screen_name recipient.screen_name)))))))
     (mapcar #'convert res)))
 
-(define-api direct-messages (since_id max_id count page include_entities)
+(define-api direct-messages (since_id max_id count include_entities skip_status)
   :path   "/direct_messages.json"
   :key #'messages-to-statuses)
 
@@ -481,13 +481,17 @@
   :path   "/direct_messages/sent.json"
   :key #'messages-to-statuses)
 
-(define-api direct-messages-new (user text include_entities)
+(define-api direct-messages-show (id)
+  :method post
+  :path   "/direct_messages/show.json")
+
+(define-api direct-messages-new (user_id screen_name text)
   :method post
   :path   "/direct_messages/new.json")
 
-(define-api direct-messages-destroy (id)
+(define-api direct-messages-destroy (id include_entities)
   :method post
-  :path   (format nil "/direct_messages/destroy/~D.json" id))
+  :path   "/direct_messages/destroy.json")
 
 (defun api-direct-messages-all-async (&key since_id max_id count page include_entities
 					   onsuccess onfailure)
@@ -963,11 +967,12 @@
 
 (defun send-message ()
   (interactive)
-  (w/entry (user.id user.screen_name)
-    (let ((status (read-status (format nil "DM to @~A: " user.screen_name))))
+  (w/entry (user.id user.screen_name sender.id sender.screen_name)
+    (let* ((name (or sender.screen_name user.screen_name))
+	   (id (or sender.id user.id))
+	   (status (read-status (format nil "DM to @~A: " name))))
       (when (string/= "" status)
-	(api-direct-messages-new :user user.screen_name
-				 :text status)))))
+	(api-direct-messages-new :user_id id :text status)))))
 
 
 (defun destroy-status ()
