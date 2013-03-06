@@ -531,6 +531,18 @@
   :key #'(lambda (res) (json-value res statuses)))
 
 
+;;; help
+
+(define-api help-configuration ()
+  :path "/help/configuration.json")
+
+(define-api help-languages ()
+  :path "/help/languages.json")
+
+(define-api rate-limit-status (resources)
+  :path "/application/rate_limit_status.json")
+
+
 ;;; timeline buffer
 (defun timeline-draw-statuses (buf statuses &key (point 0) (display-count nil))
   (save-excursion
