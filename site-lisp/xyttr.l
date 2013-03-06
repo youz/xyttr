@@ -39,7 +39,8 @@
 (defvar *timeline-reload-hook* nil)
 
 ;;; const
-(defconstant *api-baseurl*    "https://api.twitter.com/1.1")
+(defconstant *api-baseurl* "https://api.twitter.com")
+(defconstant *api-version* "1.1")
 
 (defconstant *client-info*
   '(:X-Twitter-Client         "xyttr"
@@ -298,7 +299,7 @@
 	     ))))
 
 (defun api-request (method path params)
-  (let* ((url (concat *api-baseurl* path))
+  (let* ((url (concat *api-baseurl* "/" *api-version* path))
 	 (cred (list :consumer-key *consumer-key*
 		     :consumer-secret *consumer-secret*
 		     :token *token*
@@ -319,7 +320,7 @@
 
 (defun api-request-async (method path params
 			  &key raw onsuccess onfailure oncomplete handler)
-  (let* ((url (concat *api-baseurl* path))
+  (let* ((url (concat *api-baseurl* "/" *api-version* path))
 	 (cred (list :consumer-key *consumer-key*
 		     :consumer-secret *consumer-secret*
 		     :token *token*
