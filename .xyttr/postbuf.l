@@ -154,7 +154,8 @@
        :params (list :user_id id)
        :api #'api-direct-messages-new-async
        :status-field :text
-       :ref (format nil "DirectMessage to @~A" name)))))
+       :ref (format nil "DirectMessage to @~A" name)
+       :reload (selected-buffer)))))
 
 (defun setup-keymap ()
   (interactive)
