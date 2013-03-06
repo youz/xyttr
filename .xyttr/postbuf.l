@@ -90,8 +90,8 @@
 	   (getf post-buffer-args :status-field) text
 	   :onsuccess
 	   (lambda (res)
-	     (whenlet tlbuf (getf args :reload)
-	       (timeline-reload tlbuf))
+	     (xyttr::whenlet tlbuf (getf args :reload)
+	       (start-timer 1 (lambda () (timeline-reload tlbuf)) t))
 	     (message "Done."))
 	   :onfailure
 	   (lambda (res status headers)
