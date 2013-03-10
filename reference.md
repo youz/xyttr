@@ -50,17 +50,9 @@ xyttrのコマンドとxyttrパッケージ内の関数/マクロのリファレ
     言語指定なしでtwitter検索します。
     他のタイムラインバッファからは`S`または`/`で呼び出せます。
 
-- xyttr-retweeted-by-me
+- xyttr-retweets-of-me
 
-    リツイートしたツイートを表示します。
-
-- xyttr-retweeted-to-me
-
-    フォロイーがリツイートしたツイートを表示します。
-
-- xyttr-retweeted-of-me
-
-    誰かにリツイートされた自分のツイートを表示します。
+    他のユーザーにリツイートされた自分のツイートを表示します。
 
 
 ## タイムラインバッファ用コマンド
@@ -173,39 +165,29 @@ Twitter REST APIを利用するための関数です。全てxyttrパッケー�
 
 ### タイムライン
 
-- api-public-timeline (&key trim_user include_entities)
-- api-public-timeline-async (&key trim_user include_entities onsuccess onfailure oncomplete handler)
-- api-home-timeline (&key since_id max_id count page trim_user include_entities)
-- api-home-timeline-async (&key since_id max_id count page trim_user include_entities onsuccess onfailure oncomplete handler)
-- api-mentions (&key since_id max_id count page trim_user include_rts include_entities)
-- api-mentions-async (&key since_id max_id count page trim_user include_rts include_entities onsuccess onfailure oncomplete handler)
-- api-user-timeline (&key user_id screen_name since_id max_id count page trim_user include_rts include_entities)
-- api-user-timeline-async (&key user_id screen_name since_id max_id count page trim_user include_rts include_entities onsuccess onfailure oncomplete handler)
-- api-search (&key q lang rpp page max_id since_id since geocode show_ser result_type)
-- api-search-async (&key q lang rpp page max_id since_id since geocode show_ser result_type onsuccess onfailure oncomplete handler)
+- api-home-timeline (&key count since_id max_id trim_user exclude_replies contributor_details include_rts)
+- api-home-timeline-async (&key count since_id max_id trim_user exclude_replies contributor_details include_rts onsuccess onfailure oncomplete handler)
+- api-mentions (&key count since_id max_id trim_user contributor_details include_entities)
+- api-mentions-async (&key count since_id max_id trim_user contributor_details include_entities onsuccess onfailure oncomplete handler)
+- api-user-timeline (&key user_id screen_name count since_id max_id trim_user exclude_replies contributor_details include_rts)
+- api-user-timeline-async (&key user_id screen_name count since_id max_id trim_user exclude_replies contributor_details include_rts onsuccess onfailure oncomplete handler)
+- api-search (&key q lang count page max_id since_id until geocode result_type include_entities)
+- api-search-async (&key q lang count page max_id since_id until geocode result_type include_entities onsuccess onfailure oncomplete handler)
 
 - api-show-status (&key id)
 - api-show-status-async (&key id onsuccess onfailure oncomplete handler)
 
 ### ポスト
 
-- api-update (&key status in_reply_to_status_id lat long place_id display_coordinates)
-- api-update-async (&key status in_reply_to_status_id lat long place_id display_coordinates onsuccess onfailure oncomplete handler)
-- api-destroy (&key id)
-- api-destroy-async (&key id onsuccess onfailure oncomplete handler)
+- api-update (&key status in_reply_to_status_id lat long place_id display_coordinates trim_user)
+- api-update-async (&key status in_reply_to_status_id lat long place_id display_coordinates trim_user onsuccess onfailure oncomplete handler)
+- api-destroy (&key id trim_user)
+- api-destroy-async (&key id trim_user onsuccess onfailure oncomplete handler)
 
 ### ReTweet
 
 - api-retweet (&key id)
 - api-retweet-async (&key id onsuccess onfailure oncomplete handler)
-- api-retweeted-by-me (&key since_id max_id count page trim_user include_entities)
-- api-retweeted-by-me-async (&key since_id max_id count page trim_user include_entities onsuccess onfailure oncomplete handler)
-- api-retweeted-to-me (&key since_id max_id count page trim_user include_entities)
-- api-retweeted-to-me-async (&key since_id max_id count page trim_user include_entities onsuccess onfailure oncomplete handler)
-- api-retweeted_by (&key id count page)
-- api-retweeted_by-async (&key id count page onsuccess onfailure oncomplete handler)
-- api-retweeted_by/ids (&key id count page)
-- api-retweeted_by/ids-async (&key id count page onsuccess onfailure oncomplete handler)
 - api-retweets (&key id count)
 - api-retweets-async (&key id count onsuccess onfailure oncomplete handler)
 - api-retweets-of-me (&key since_id max_id count page trim_user include_entities)
@@ -213,47 +195,58 @@ Twitter REST APIを利用するための関数です。全てxyttrパッケー�
 
 ### Direct Message
 
-- api-direct-messages (&key since_id max_id count page)
-- api-direct-messages-async (&key since_id max_id count page onsuccess onfailure oncomplete handler)
-- api-direct-messages-destroy (&key id)
-- api-direct-messages-destroy-async (&key id onsuccess onfailure oncomplete handler)
-- api-direct-messages-new (&key user text)
-- api-direct-messages-new-async (&key user text onsuccess onfailure oncomplete handler)
-- api-direct-messages-sent (&key since_id max_id count page)
-- api-direct-messages-sent-async (&key since_id max_id count page onsuccess onfailure oncomplete handler)
+- api-direct-messages (&key since_id max_id count include_entities skip_status)
+- api-direct-messages-async (&key since_id max_id count include_entities skip_status onsuccess onfailure oncomplete handler)
+- api-direct-messages-destroy (&key id include_entities)
+- api-direct-messages-destroy-async (&key id include_entities onsuccess onfailure oncomplete handler)
+- api-direct-messages-new (&key user_id screen_name text)
+- api-direct-messages-new-async (&key user_id screen_name text onsuccess onfailure oncomplete handler)
+- api-direct-messages-sent (&key since_id max_id count page include_entities)
+- api-direct-messages-sent-async (&key since_id max_id count page include_entities onsuccess onfailure oncomplete handler)
+- api-direct-messages-show (&key id)
+- api-direct-messages-show-async (&key id onsuccess onfailure oncomplete handler)
 
 ### Favorites
 
-- api-favorites (&key id page)
-- api-favorites-async (&key id page onsuccess onfailure oncomplete handler)
-- api-favorites-create (&key id)
-- api-favorites-create-async (&key id onsuccess onfailure oncomplete handler)
-- api-favorites-destroy (&key id)
-- api-favorites-destroy-async (&key id onsuccess onfailure oncomplete handler)
+- api-favorites (&key user_id screen_name count since_id max_id include_entities)
+- api-favorites-async (&key user_id screen_name count since_id max_id include_entities onsuccess onfailure oncomplete handler)
+- api-favorites-create (&key id include_entities)
+- api-favorites-create-async (&key id include_entities onsuccess onfailure oncomplete handler)
+- api-favorites-destroy (&key id include_entities)
+- api-favorites-destroy-async (&key id include_entities onsuccess onfailure oncomplete handler)
 
 
 ### List
 
-- api-list-create (&key user name mode description)
-- api-list-create-async (&key user name mode description onsuccess onfailure oncomplete handler)
-- api-list-delete (&key user list_id)
-- api-list-delete-async (&key user list_id onsuccess onfailure oncomplete handler)
-- api-list-index (&key user cursor)
-- api-list-index-async (&key user cursor onsuccess onfailure oncomplete handler)
-- api-list-info (&key user list_id)
-- api-list-info-async (&key user list_id onsuccess onfailure oncomplete handler)
-- api-list-memberships (&key user list_id)
-- api-list-memberships-async (&key user list_id onsuccess onfailure oncomplete handler)
-- api-list-statuses (&key user list_id since_id max_id per_page page)
-- api-list-statuses-async (&key user list_id since_id max_id per_page page onsuccess onfailure oncomplete handler)
-- api-list-subscriptions (&key user cursor)
-- api-list-subscriptions-async (&key user cursor onsuccess onfailure oncomplete handler)
-- api-list-update (&key user list_id name mode description)
-- api-list-update-async (&key user list_id name mode description onsuccess onfailure oncomplete handler)
+- api-list-create (&key name mode description)
+- api-list-create-async (&key name mode description onsuccess onfailure oncomplete handler)
+- api-list-delete (&key list_id slug owner_screen_name owner_id)
+- api-list-delete-async (&key list_id slug owner_screen_name owner_id onsuccess onfailure oncomplete handler)
+- api-list-index (&key user_id screen_name)
+- api-list-index-async (&key user_id screen_name onsuccess onfailure oncomplete handler)
+- api-list-info (&key list_id slug owner_screen_name owner_id)
+- api-list-info-async (&key list_id slug owner_screen_name owner_id onsuccess onfailure oncomplete handler)
+- api-list-memberships (&key user_id screen_name cursor filter_to_owned_lists)
+- api-list-memberships-async (&key user_id screen_name cursor filter_to_owned_lists onsuccess onfailure oncomplete handler)
+- api-list-statuses (&key list_id slug owner_screen_name owner_id since_id max_id count include_entities include_rts)
+- api-list-statuses-async (&key list_id slug owner_screen_name owner_id since_id max_id count include_entities include_rts onsuccess onfailure oncomplete handler)
+- api-list-subscriptions (&key user_id screen_name count cursor)
+- api-list-subscriptions-async (&key user_id screen_name count cursor onsuccess onfailure oncomplete handler)
+- api-list-update (&key list_id slug name mode description owner_screen_name owner_id)
+- api-list-update-async (&key list_id slug name mode description owner_screen_name owner_id onsuccess onfailure oncomplete handler)
 
 
-各APIの機能/引数の意味は https://dev.twitter.com/docs/api や
-http://watcher.moe-nifty.com/memo/docs/twitterAPI50.txt 等を参照してください。
+## Help
+
+- api-rate-limit-status (&key resuources)
+- api-rate-limit-status-async (&key resources onsuccess onfailure oncomplete handler)
+- api-help-configuration ()
+- api-help-configuration-async (&key onsuccess onfailure oncomplete handler)
+- api-help-languages ()
+- api-help-languages-async (&key onsuccess onfailure oncomplete handler)
+
+
+各APIの機能/引数の意味は https://dev.twitter.com/docs/api を参照してください。
 REST APIのパス名/パラメータ名がほぼそのまま関数名/引数名になっています。
 
 関数名の最後に`-async`とある物は非同期リクエストを行う関数で、それ以外は
@@ -412,7 +405,7 @@ xyttrをカスタマイズ/拡張する際に便利な関数/マクロです。
     read-onlyなバッファを一時的に書き込み可能にしてbodyを評価します。
 
 
-- *macro* define-api (name params &key auth method apiurl path key)
+- *macro* define-api (name params &key auth method path key)
 
     Twitter REST API関数を定義します。
     同期版 api-{name} と 非同期版 api-{name}-async の2つの関数が生成され、
@@ -422,27 +415,20 @@ xyttrをカスタマイズ/拡張する際に便利な関数/マクロです。
     * params -- リクエストパラメータ
     * auth -- OAuth認証ヘッダの必要の有無 (省略時は t)
     * method -- HTTPメソッド (省略時は get)
-    * apiurl -- リクエスト先ホスト名 (省略時は "api.twitter.com")
     * path -- リソースURLのパス部分 (省略不可)
     * key -- 関数を指定すると、リクエスト結果(jsonリスト)をその関数に通してから返します。
 
 ----
     ;; 使用例 (xyttr.lより抜粋)
     (define-api update
-      (status in_reply_to_status_id lat long place_id display_coordinates)
+      (status in_reply_to_status_id lat long place_id display_coordinates trim_user)
       :method post
-      :path "/1/statuses/update.json")
+      :path "/statuses/update.json")
     
-    (define-api destroy (id)
+    (define-api destroy (id trim_user)
       :method post
-      :path (format nil "/1/statuses/destroy/~D.json" id))
+      :path (format nil "/statuses/destroy/~D.json" id))
 
-    (define-api search
-      (q lang rpp page max_id since_id since until
-       geocode show_user result_type)
-      :apiurl *search-url*
-      :path "/search.json"
-      :key #'search-result-to-statuses)
 
 - *macro* define-tl-command (name params &key interactive buffer-name api-func api-params auto-reload hook)
 
@@ -466,17 +452,18 @@ xyttrをカスタマイズ/拡張する際に便利な関数/マクロです。
     (define-tl-command xyttr ()
       :buffer-name "*tw: home*"
       :api-func #'api-home-timeline-async
-      :api-params (:count 50))
+      :api-params (:count 50 :include_entities "true"))
     
     (define-tl-command xyttr-user (user)
       :interactive "sUser: @"
       :buffer-name (format nil "*tw: ~:[@~A~;mine~]*" (string= "" user) user)
       :api-func #'api-user-timeline-async
-      :api-params (:screen_name user :count 50 :include_rts t))
+      :api-params (:screen_name user :count 50 :include_rts t
+                   :include_entities "true"))
     
     (define-tl-command xyttr-search (q)
       :interactive "sSearch Twitter: "
       :buffer-name (format nil "*tw? ~A*" q)
       :api-func #'api-search-async
-      :api-params (:q q :rpp 50 :lang *search-lang*
-               :include_entities "true"))
+      :api-params (:q q :count 50 :lang *search-lang*
+                   :include_entities "true"))
