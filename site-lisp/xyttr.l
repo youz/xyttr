@@ -545,35 +545,36 @@
 
 ;;; timeline buffer
 (defun timeline-draw-statuses (buf statuses &key (point 0) (display-count nil))
-  (save-excursion
-    (set-buffer buf)
-    (w/buffer-modifying (buf)
-      (let ((wc (max 20 (1- (window-columns)))))
-	(with-output-to-buffer (buf point)
-	  (dolist (st statuses)
-	    (let ((start #1=(buffer-stream-point *standard-output*)))
-	      (format t " ~V@{-~}~%" (1- wc) t)
-	      (w/json (user.name user.screen_name created_at text source favorited
-				 retweeted_status retweet_count) st
-		(let ((date (format-date-string "%y/%m/%d (%a) %H:%M:%S" (parse-date created_at)))
-		      (from (if (and source (string-match ">\\([^<]+\\)<" source))
-				(match-string 1)
-			      source))
-		      (text (if retweeted_status
-				(w/json (user.screen_name text) retweeted_status
-				  (format nil "RT~@[(~A)~] @~A: ~A"
-					  retweet_count user.screen_name (entity2char text)))
-			      (entity2char text))))
-		  (format t "@~A ~@[/ ~A~] [~A] ~:[ ~;š~]"
-			  user.screen_name user.name date favorited)
-		  (apply #'set-text-attribute (1- #1#) #1# (cons :fav favorited) *favorite-star-style*)
-		  (format t "~@[ from ~A~]~%~A~%" from text)))
-	      (apply #'set-text-attribute (1+ start) (+ start wc)
-		     (cons :entry st) *separater-style*)))
-	  (when display-count
-	    (format t "~V@{=~}~%~D new tweets" wc (length statuses)))
-	  )))
-    (recenter)))
+  (with-set-buffer
+    (save-excursion
+      (set-buffer buf)
+      (w/buffer-modifying (buf)
+	(let ((wc (max 20 (1- (window-columns)))))
+	  (with-output-to-buffer (buf point)
+	    (dolist (st statuses)
+	      (let ((start #1=(buffer-stream-point *standard-output*)))
+		(format t " ~V@{-~}~%" (1- wc) t)
+		(w/json (user.name user.screen_name created_at text source favorited
+				   retweeted_status retweet_count) st
+		  (let ((date (format-date-string "%y/%m/%d (%a) %H:%M:%S" (parse-date created_at)))
+			(from (if (and source (string-match ">\\([^<]+\\)<" source))
+				  (match-string 1)
+				source))
+			(text (if retweeted_status
+				  (w/json (user.screen_name text) retweeted_status
+				    (format nil "RT~@[(~A)~] @~A: ~A"
+					    retweet_count user.screen_name (entity2char text)))
+				(entity2char text))))
+		    (format t "@~A ~@[/ ~A~] [~A] ~:[ ~;š~]"
+			    user.screen_name user.name date favorited)
+		    (apply #'set-text-attribute (1- #1#) #1# (cons :fav favorited) *favorite-star-style*)
+		    (format t "~@[ from ~A~]~%~A~%" from text)))
+		(apply #'set-text-attribute (1+ start) (+ start wc)
+		       (cons :entry st) *separater-style*)))
+	    (when display-count
+	      (format t "~V@{=~}~%~D new tweets" wc (length statuses)))
+	    )))
+      (recenter))))
 
 
 (defun entry-point (&optional (p (point)))
