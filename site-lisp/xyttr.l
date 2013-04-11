@@ -217,7 +217,7 @@
 	  (unless (string-match "^30." status)
 	    (return))
 	  (whilet l (read-line cn t)
-	    (when (or (string-match "^Location: \\(.+\\)$" l) (string= l ""))
+	    (when (or (string-matchp "^Location: \\(.+\\)$" l) (string= l ""))
 	      (return)))
 	  (whenlet m (match-string 1)
 	    (setq url (if (char= (char m 0) #\/) (concat "http://" host m) m)))))))
