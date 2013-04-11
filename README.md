@@ -9,7 +9,7 @@ xyzzy上で動作するミニマムなtwitterクライアント
  
     下記のURLのパッケージリストを登録し、パッケージ`*scrap*`よりインストールして下さい。
 
-    http://youz.github.com/xyzzy/package.l
+    http://youz.github.io/xyzzy/packages.l
 
 - 手動インストール
 
