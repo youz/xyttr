@@ -429,7 +429,7 @@
 
 (define-api favorites-destroy (id include_entities)
   :method post
-  :path "/favorites/destroy/~D.json")
+  :path "/favorites/destroy.json")
 
 
 ;;; list api
